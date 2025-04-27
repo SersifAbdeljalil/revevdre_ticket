@@ -28,7 +28,6 @@ export const useScrollAnimation = () => {
     const sections = [
       '.section-header',
       '.feature-card',
-      '.match-card',
       '.about-text',
       '.about-image',
       '.contact-info',

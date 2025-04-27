@@ -3,6 +3,15 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaTicketAlt, FaArrowRight, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaFacebook, FaTwitter, FaInstagram } from 'react-icons/fa';
 import useInitAnimations from './Animation';
+
+// Importation des images
+import stadiumBackground from '../../assets/stadium-background.jpg';
+import aboutImage from '../../assets/about-image.jpg';
+import buyIcon from '../../assets/icons/buy-icon.jpg';
+import sellIcon from '../../assets/icons/sell-icon.jpg';
+import verifyIcon from '../../assets/icons/verify-icon.jpg';
+import transferIcon from '../../assets/icons/transfer-icon.jpg';
+
 import './HomePage.css';
 
 const HomePage = () => {
@@ -20,7 +29,7 @@ const HomePage = () => {
       setScrolled(scrollTop > 50);
 
       // Déterminer quelle section est active
-      const sections = ['hero', 'about', 'features', 'matches', 'contact'];
+      const sections = ['hero', 'about', 'features', 'contact'];
       for (const section of sections) {
         const element = document.getElementById(section);
         if (!element) continue;
@@ -57,13 +66,6 @@ const HomePage = () => {
     setMenuOpen(!menuOpen);
   };
 
-  // Données de matchs fictives
-  const upcomingMatches = [
-    { id: 1, team1: 'Maroc', team2: 'Nigeria', date: '15 Juin 2025', time: '20:00', venue: 'Stade Mohammed V, Casablanca' },
-    { id: 2, team1: 'Côte d\'Ivoire', team2: 'Égypte', date: '18 Juin 2025', time: '17:30', venue: 'Stade Félix Houphouët-Boigny, Abidjan' },
-    { id: 3, team1: 'Sénégal', team2: 'Algérie', date: '21 Juin 2025', time: '19:00', venue: 'Stade Léopold Sédar Senghor, Dakar' }
-  ];
-
   return (
     <div className="home-page">
       {/* Navigation fixe sur la page d'accueil */}
@@ -87,7 +89,6 @@ const HomePage = () => {
                 <li><a href="#hero" onClick={() => scrollToSection('hero')} className={activeSection === 'hero' ? 'active' : ''}>Accueil</a></li>
                 <li><a href="#about" onClick={() => scrollToSection('about')} className={activeSection === 'about' ? 'active' : ''}>À propos</a></li>
                 <li><a href="#features" onClick={() => scrollToSection('features')} className={activeSection === 'features' ? 'active' : ''}>Services</a></li>
-                <li><a href="#matches" onClick={() => scrollToSection('matches')} className={activeSection === 'matches' ? 'active' : ''}>Matchs</a></li>
                 <li><a href="#contact" onClick={() => scrollToSection('contact')} className={activeSection === 'contact' ? 'active' : ''}>Contact</a></li>
               </ul>
             </nav>
@@ -101,7 +102,9 @@ const HomePage = () => {
       </header>
       
       {/* Section Hero */}
-      <section id="hero" className="hero-section">
+      <section id="hero" className="hero-section" style={{
+        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(${stadiumBackground})`
+      }}>
         <div className="container">
           <div className="hero-content">
             <h1 className="hero-title">Achetez et revendez vos tickets pour la <span>CAN 2025</span></h1>
@@ -123,14 +126,16 @@ const HomePage = () => {
       
       {/* Section À propos */}
       <section id="about" className="about-section">
-      <div className="container">
+        <div className="container">
           <div className="section-header fade-in">
             <h2>À propos de nous</h2>
             <div className="section-divider"></div>
           </div>
           
           <div className="about-content">
-            <div className="about-image fade-in"></div>
+            <div className="about-image fade-in" style={{
+              backgroundImage: `url(${aboutImage})`
+            }}></div>
             <div className="about-text fade-in">
               <h3>Votre plateforme fiable pour la Coupe d'Afrique des Nations 2025</h3>
               <p>Revente Tickets CAN 2025 est la première plateforme africaine dédiée à l'achat et la revente sécurisée de billets pour les matchs de la Coupe d'Afrique des Nations.</p>
@@ -164,68 +169,52 @@ const HomePage = () => {
           
           <div className="features-grid">
             <div className="feature-card fade-in">
-              <div className="feature-icon buy-icon"></div>
+              <div className="feature-icon" style={{
+                backgroundImage: `url(${buyIcon})`,
+                backgroundSize: '40px',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)'
+              }}></div>
               <h3>Achat de tickets</h3>
               <p>Achetez des billets pour tous les matchs de la CAN 2025 en quelques clics seulement.</p>
             </div>
             
             <div className="feature-card fade-in" style={{animationDelay: '0.2s'}}>
-              <div className="feature-icon sell-icon"></div>
+              <div className="feature-icon" style={{
+                backgroundImage: `url(${sellIcon})`,
+                backgroundSize: '40px',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)'
+              }}></div>
               <h3>Revente sécurisée</h3>
               <p>Revendez vos billets en toute sécurité si vous ne pouvez pas assister à un match.</p>
             </div>
             
             <div className="feature-card fade-in" style={{animationDelay: '0.4s'}}>
-              <div className="feature-icon verify-icon"></div>
+              <div className="feature-icon" style={{
+                backgroundImage: `url(${verifyIcon})`,
+                backgroundSize: '40px',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)'
+              }}></div>
               <h3>Vérification d'authenticité</h3>
               <p>Chaque billet est vérifié pour garantir son authenticité avant la mise en vente.</p>
             </div>
             
             <div className="feature-card fade-in" style={{animationDelay: '0.6s'}}>
-              <div className="feature-icon transfer-icon"></div>
+              <div className="feature-icon" style={{
+                backgroundImage: `url(${transferIcon})`,
+                backgroundSize: '40px',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                backgroundColor: 'rgba(124, 58, 237, 0.1)'
+              }}></div>
               <h3>Transfert électronique</h3>
               <p>Recevez vos e-tickets instantanément sur votre email ou dans votre compte.</p>
             </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Section Matchs */}
-      <section id="matches" className="matches-section">
-        <div className="container">
-          <div className="section-header fade-in">
-            <h2>Prochains matchs</h2>
-            <div className="section-divider"></div>
-          </div>
-          
-          <div className="matches-grid">
-            {upcomingMatches.map((match, index) => (
-              <div className="match-card fade-in" key={match.id} style={{animationDelay: `${index * 0.2}s`}}>
-                <div className="match-date">{match.date}</div>
-                <div className="match-teams">
-                  <div className="team team1">
-                    <div className={`team-flag flag-${match.team1.toLowerCase()}`}></div>
-                    <span className="team-name">{match.team1}</span>
-                  </div>
-                  <div className="match-info">
-                    <div className="match-time">{match.time}</div>
-                    <div className="match-vs">VS</div>
-                  </div>
-                  <div className="team team2">
-                    <div className={`team-flag flag-${match.team2.toLowerCase()}`}></div>
-                    <span className="team-name">{match.team2}</span>
-                  </div>
-                </div>
-                <div className="match-venue">{match.venue}</div>
-                <Link to={`/tickets/match/${match.id}`} className="match-ticket-btn">Voir les tickets</Link>
-              </div>
-            ))}
-          </div>
-          
-          <div className="view-all-container fade-in">
-            <Link to="/matches" className="view-all-btn">
-              Voir tous les matchs <FaArrowRight />
-            </Link>
           </div>
         </div>
       </section>
@@ -327,7 +316,6 @@ const HomePage = () => {
                   <li><a href="#hero" onClick={() => scrollToSection('hero')}>Accueil</a></li>
                   <li><a href="#about" onClick={() => scrollToSection('about')}>À propos</a></li>
                   <li><a href="#features" onClick={() => scrollToSection('features')}>Services</a></li>
-                  <li><a href="#matches" onClick={() => scrollToSection('matches')}>Matchs</a></li>
                   <li><a href="#contact" onClick={() => scrollToSection('contact')}>Contact</a></li>
                 </ul>
               </div>
