@@ -118,15 +118,23 @@ const MatchesList = () => {
                 </div>
                 
                 <button 
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setEditMatch(null);
-                    setShowAddModal(true);
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-                >
-                  <FaPlus /> Ajouter un match
-                </button>
+  className="btn btn-secondary"
+  onClick={() => {
+    setEditMatch(null);
+    setShowAddModal(true);
+  }}
+  style={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '5px',
+    color: '#212529', // couleur foncée visible
+    background: 'var(--secondary)', // couleur plus uniforme
+    boxShadow: 'var(--shadow-md)'   // meilleure lisibilité
+  }}
+>
+  <FaPlus /> Ajouter un match
+</button>
+
               </div>
             </div>
             
