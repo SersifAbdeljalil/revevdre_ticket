@@ -27,8 +27,14 @@ const Login = () => {
     setError('');
    
     try {
-      await loginAPI(email, motDePasse);
-      navigate('/'); // Rediriger vers la page d'accueil après connexion
+      const response = await loginAPI(email, motDePasse);
+      
+      // Rediriger selon le rôle de l'utilisateur
+      if (response && response.user && response.user.role === 'administrateur') {
+        navigate('/admin'); // Rediriger vers le dashboard administrateur
+      } else {
+        navigate('/'); // Rediriger vers la page d'accueil pour les clients
+      }
     } catch (err) {
       setError(err.message || 'Une erreur est survenue lors de la connexion');
     } finally {
@@ -40,11 +46,11 @@ const Login = () => {
   const handleGoogleAuth = () => {
     window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/google`;
   };
-
+  
   const handleFacebookAuth = () => {
     window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/facebook`;
   };
-
+  
   const handleTwitterAuth = () => {
     window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/twitter`;
   };
@@ -83,7 +89,6 @@ const Login = () => {
               placeholder="Entrez votre mot de passe"
             />
           </div>
-
           <div className="forgot-password">
             <Link to="/forgot-password">Mot de passe oublié?</Link>
           </div>
@@ -96,13 +101,11 @@ const Login = () => {
             {loading ? 'Connexion en cours...' : 'Se connecter'}
           </button>
         </form>
-
         <div className="auth-separator">
           <span></span>
           <p>OU</p>
           <span></span>
         </div>
-
         <div className="social-auth">
           <button className="social-auth-btn google" onClick={handleGoogleAuth}>
             <FaGoogle />

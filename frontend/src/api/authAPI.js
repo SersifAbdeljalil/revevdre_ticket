@@ -16,15 +16,15 @@ const setAuthToken = (token) => {
 export const loginAPI = async (email, motDePasse) => {
   try {
     const response = await axios.post(`${API_URL}/login`, { email, motDePasse });
-    
+   
     if (response.data.token) {
       localStorage.setItem('user', JSON.stringify(response.data));
       setAuthToken(response.data.token);
     }
-    
-    return response.data;
+   
+    return response.data; // Retourner les données pour accéder au rôle de l'utilisateur
   } catch (error) {
-    throw error.response.data;
+    throw error.response?.data || { message: "Erreur de connexion au serveur" };
   }
 };
 
@@ -32,15 +32,15 @@ export const loginAPI = async (email, motDePasse) => {
 export const signupAPI = async (nom, email, motDePasse, role = 'client') => {
   try {
     const response = await axios.post(`${API_URL}/signup`, { nom, email, motDePasse, role });
-    
+   
     if (response.data.token) {
       localStorage.setItem('user', JSON.stringify(response.data));
       setAuthToken(response.data.token);
     }
-    
+   
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error.response?.data || { message: "Erreur de connexion au serveur" };
   }
 };
 
@@ -61,6 +61,18 @@ export const getUserInfoAPI = async () => {
     const response = await axios.get(`${API_URL}/me`);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error.response?.data || { message: "Erreur de connexion au serveur" };
   }
+};
+
+// Vérifier si l'utilisateur est administrateur
+export const isAdmin = () => {
+  const user = getCurrentUserAPI();
+  return user && user.user && user.user.role === 'administrateur';
+};
+
+// Vérifier si l'utilisateur est connecté
+export const isAuthenticated = () => {
+  const user = getCurrentUserAPI();
+  return !!user && !!user.token;
 };
