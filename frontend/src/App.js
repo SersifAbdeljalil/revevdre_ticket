@@ -8,6 +8,7 @@ import HomePage from './components/home/HomePage';
 import AdminDashboard from './components/admin/AdminDashboard';
 import UsersList from './components/admin/UserManagement/UsersList';
 import MatchesList from './components/admin/MatchManagement/MatchesList';
+import TicketsList from './components/admin/TicketManagement/TicketsList';
 import { getCurrentUserAPI } from './api/authAPI';
 import './App.css';
 
@@ -92,7 +93,7 @@ const App = () => {
           } />
           <Route path="/admin/tickets" element={
             <PrivateRoute 
-              element={<div>Gestion des tickets (à implémenter)</div>} 
+              element={<TicketsList />} 
               requiredRole="administrateur"
             />
           } />

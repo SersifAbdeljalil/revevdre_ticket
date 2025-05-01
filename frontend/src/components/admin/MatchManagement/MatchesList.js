@@ -1,6 +1,16 @@
 // src/components/admin/MatchManagement/MatchesList.js
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch } from 'react-icons/fa';
+import { 
+  FaPlus, 
+  FaEdit, 
+  FaTrash, 
+  FaChartLine, 
+  FaSearch, 
+  FaCalendarAlt, 
+  FaMapMarkerAlt, 
+  FaUsers,
+  FaExclamationTriangle
+} from 'react-icons/fa';
 import { getAllMatches, deleteMatch, getMatchSalesStats } from '../../../api/adminAPI';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
@@ -94,52 +104,64 @@ const MatchesList = () => {
         <Header title="Gestion des matchs" />
         
         <div className="dashboard-content">
-          {error && <div className="error-alert">{error}</div>}
+          {error && (
+            <div className="error-alert">
+              <FaExclamationTriangle />
+              {error}
+            </div>
+          )}
+
+          {/* En-tête orange style ticket */}
+          <div className="feature-header">
+            <div className="feature-header-content">
+              <h1 className="feature-title">Gestion des matchs CAN 2025</h1>
+              <p className="feature-description">
+                Gérez les matchs de la CAN 2025, ajoutez de nouveaux matchs ou modifiez ceux existants. Consultez les statistiques de vente des billets.
+              </p>
+              
+              <div className="feature-actions">
+                <button 
+                  className="btn-feature"
+                  onClick={() => {
+                    setEditMatch(null);
+                    setShowAddModal(true);
+                  }}
+                >
+                  <FaPlus /> Ajouter un match
+                </button>
+              </div>
+            </div>
+            <div className="feature-icon">
+              <FaCalendarAlt />
+            </div>
+          </div>
           
           <div className="dashboard-section">
-            <div className="section-header" style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: '20px' 
-            }}>
-              <h2>Liste des matchs</h2>
+            <div className="section-header">
+              <div className="section-title">
+                <h2>Liste des matchs</h2>
+                <p className="section-subtitle">Tous les matchs de la compétition</p>
+              </div>
               
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <div className="search-container" style={{ display: 'flex', alignItems: 'center', maxWidth: '300px' }}>
-                  <FaSearch style={{ marginRight: '10px', color: '#5D3C81' }} />
+              <div className="section-actions">
+                <div className="search-container">
+                  <FaSearch className="search-icon" />
                   <input
                     type="text"
-                    className="form-control"
+                    className="search-input"
                     placeholder="Rechercher un match..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                
-                <button 
-  className="btn btn-secondary"
-  onClick={() => {
-    setEditMatch(null);
-    setShowAddModal(true);
-  }}
-  style={{ 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: '5px',
-    color: '#212529', // couleur foncée visible
-    background: 'var(--secondary)', // couleur plus uniforme
-    boxShadow: 'var(--shadow-md)'   // meilleure lisibilité
-  }}
->
-  <FaPlus /> Ajouter un match
-</button>
-
               </div>
             </div>
             
             {loading ? (
-              <div className="loading">Chargement des matchs...</div>
+              <div className="loading-container">
+                <div className="loading-spinner"></div>
+                <p>Chargement des matchs...</p>
+              </div>
             ) : (
               <div className="table-responsive">
                 <table className="admin-table">
@@ -157,14 +179,46 @@ const MatchesList = () => {
                     {filteredMatches.length > 0 ? (
                       filteredMatches.map((match) => (
                         <tr key={match.id}>
-                          <td>{match.id}</td>
-                          <td>{formatDate(match.date)}</td>
+                          <td>#{match.id}</td>
                           <td>
-                            <strong>{match.equipe1}</strong> vs <strong>{match.equipe2}</strong>
+                            <div className="cell-with-icon">
+                              <FaCalendarAlt className="cell-icon" style={{ color: 'var(--primary)' }} />
+                              {formatDate(match.date)}
+                            </div>
                           </td>
-                          <td>{match.lieu}</td>
-                          <td className="tickets-count">
-                            {match.ticketsVendus || 0} / {match.capacite || '∞'}
+                          <td>
+                            <div className="match-teams">
+                              <span className="team team1">{match.equipe1}</span>
+                              <span className="vs">VS</span>
+                              <span className="team team2">{match.equipe2}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="cell-with-icon">
+                              <FaMapMarkerAlt className="cell-icon" style={{ color: 'var(--accent)' }} />
+                              {match.lieu}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="cell-with-icon">
+                              <FaUsers className="cell-icon" style={{ color: 'var(--purple)' }} />
+                              <div className="tickets-count">
+                                <span className={`ticket-count ${
+                                  match.capacite && (match.ticketsVendus / match.capacite > 0.9) 
+                                    ? 'almost-full' 
+                                    : match.capacite && (match.ticketsVendus / match.capacite > 0.7) 
+                                      ? 'moderate' 
+                                      : ''
+                                }`}>
+                                  {match.ticketsVendus || 0}
+                                </span>
+                                {match.capacite ? (
+                                  <span className="capacity">/ {match.capacite}</span>
+                                ) : (
+                                  <span className="capacity">/ ∞</span>
+                                )}
+                              </div>
+                            </div>
                           </td>
                           <td>
                             <div className="table-actions">

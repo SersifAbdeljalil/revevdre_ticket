@@ -5,6 +5,8 @@ const cors = require('cors');
 const { pool } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const clientRoutes = require('./routes/clientRoutes');
+const ticketRoutes = require('./routes/ticketRoutes');
 const { protect } = require('./middleware/authMiddleware');
 
 const app = express();
@@ -40,6 +42,8 @@ testDbConnection();
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes); // Nouvelles routes admin
+app.use('/api/admin', ticketRoutes);
+app.use('/api/admin', clientRoutes);
 
 // Route pour vérifier la version de l'API
 app.get('/api/version', (req, res) => {

@@ -2038,3 +2038,120 @@ input:checked + .slider:before {
     }
   }
 }
+/* Styles pour l'en-tête de fonctionnalité (style orange comme dans la gestion des tickets) */
+/* Ajoutez ces styles à votre fichier AdminStyle.css */
+
+.feature-header {
+  background: var(--primary-gradient);
+  border-radius: var(--border-radius-lg);
+  padding: 30px;
+  margin-bottom: 30px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Version avec fond orange */
+.feature-header {
+  background: #ff6b01;
+  background: linear-gradient(135deg, #ff6b01 0%, #ff9a44 100%);
+}
+
+.feature-header-content {
+  flex: 1;
+  position: relative;
+  z-index: 2;
+}
+
+.feature-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  color: white;
+}
+
+.feature-description {
+  font-size: 1rem;
+  opacity: 0.9;
+  margin-bottom: 25px;
+  max-width: 80%;
+}
+
+.feature-actions {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.btn-feature {
+  background-color: white;
+  color: #ff6b01;
+  border: none;
+  padding: 12px 20px;
+  border-radius: var(--border-radius-md);
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.btn-feature:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.btn-feature-secondary {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.btn-feature-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.feature-icon {
+  font-size: 8rem;
+  opacity: 0.2;
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Pour les écrans plus petits */
+@media (max-width: 768px) {
+  .feature-header {
+    padding: 20px;
+  }
+  
+  .feature-title {
+    font-size: 1.5rem;
+  }
+  
+  .feature-description {
+    font-size: 0.9rem;
+    max-width: 100%;
+  }
+  
+  .feature-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .btn-feature {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .feature-icon {
+    display: none;
+  }
+}
