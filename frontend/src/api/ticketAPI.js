@@ -1,178 +1,304 @@
 // src/api/ticketAPI.js
 import axios from 'axios';
-import { getCurrentUserAPI } from './authAPI';
 
+// Configuration de l'URL de base de l'API
 const API_URL = 'http://localhost:5000/api';
 
-// Configurer axios pour les requêtes authentifiées
-const setupAuthHeader = () => {
-  const user = getCurrentUserAPI();
-  if (user && user.token) {
+// Correction du chemin pour correspondre au backend
+const TICKETS_ENDPOINT = '/tickets'; // Au lieu de '/admin/tickets'
+
+// Configurer axios pour envoyer le token dans les headers
+const setAuthToken = () => {
+  try {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      console.warn('Aucun utilisateur trouvé dans localStorage');
+      return false;
+    }
+    
+    const user = JSON.parse(userStr);
+    if (!user || !user.token) {
+      console.warn('Aucun token trouvé dans les données utilisateur');
+      return false;
+    }
+    
+    console.log('Token trouvé, définition des headers');
     axios.defaults.headers.common['Authorization'] = `Bearer ${user.token}`;
     return true;
-  }
-  throw new Error('Utilisateur non authentifié');
-};
-
-// RÉCUPÉRATION DES TICKETS
-
-// Récupérer tous les tickets (Admin uniquement)
-export const getAllTickets = async () => {
-  try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/tickets`);
-    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération des tickets" };
+    console.error('Erreur lors de la configuration du token:', error);
+    return false;
   }
 };
 
-// Récupérer les tickets d'un client spécifique
-export const getClientTickets = async (clientId) => {
+// Vérifier si l'API est disponible
+export const checkApiHealth = async () => {
   try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/clients/${clientId}/tickets`);
-    return response.data;
+    // Utiliser la route de version qui existe déjà dans votre serveur
+    const response = await axios.get(`${API_URL}/version`, { 
+      timeout: 5000 // 5 secondes max
+    });
+    
+    return { 
+      available: true, 
+      status: response.status,
+      data: response.data
+    };
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération des tickets du client" };
+    console.error('Erreur lors de la vérification de l\'API:', error);
+    return { 
+      available: false, 
+      error: error.message
+    };
   }
 };
 
-// Récupérer les tickets pour un match spécifique
-export const getMatchTickets = async (matchId) => {
+// Récupérer tous les tickets avec filtres
+export const getAllTickets = async (filters = {}) => {
   try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/matches/${matchId}/tickets`);
-    return response.data;
+    console.log('Tentative de récupération des tickets avec filtres:', filters);
+    
+    // Vérifier la santé de l'API d'abord (optionnel)
+    const healthCheck = await checkApiHealth();
+    if (!healthCheck.available) {
+      console.error('API inaccessible lors du health check:', healthCheck.error);
+      throw new Error(`API inaccessible: ${healthCheck.error}`);
+    }
+    
+    // Configurer le token d'authentification
+    const hasToken = setAuthToken();
+    console.log('Token d\'authentification défini:', hasToken);
+    
+    // URL complète avec le bon chemin pour les tickets
+    const fullUrl = `${API_URL}${TICKETS_ENDPOINT}`;
+    console.log('URL complète de l\'appel API:', fullUrl);
+    
+    // Tentative avec timeout prolongé
+    const response = await axios.get(fullUrl, { 
+      params: filters,
+      timeout: 10000, // 10 secondes
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    
+    console.log('Status de la réponse:', response.status);
+    console.log('Données brutes reçues:', response.data);
+    
+    // Normaliser la réponse selon différents formats possibles
+    let tickets;
+    
+    if (Array.isArray(response.data)) {
+      tickets = response.data;
+    } else if (response.data.tickets && Array.isArray(response.data.tickets)) {
+      tickets = response.data.tickets;
+    } else if (typeof response.data === 'object') {
+      // Chercher un tableau dans l'objet
+      const possibleTicketArrays = Object.values(response.data)
+        .filter(val => Array.isArray(val));
+        
+      if (possibleTicketArrays.length > 0) {
+        tickets = possibleTicketArrays[0];
+      } else {
+        // Si aucun tableau n'est trouvé, considérer que c'est un objet unique
+        tickets = [response.data];
+      }
+    } else {
+      throw new Error('Format de réponse non reconnu');
+    }
+    
+    // Appliquer la transformation pour chaque ticket
+    const formattedTickets = tickets.map(ticket => adaptTicketForFrontend(ticket));
+    
+    console.log('Tickets normalisés:', formattedTickets);
+    
+    // Validation des données reçues
+    if (formattedTickets.length > 0) {
+      const requiredProps = ['id', 'prix'];
+      const missingProps = [];
+      
+      // Vérifier les propriétés essentielles sur le premier ticket
+      for (const prop of requiredProps) {
+        if (formattedTickets[0][prop] === undefined) {
+          missingProps.push(prop);
+        }
+      }
+      
+      if (missingProps.length > 0) {
+        console.warn(`Attention: Propriétés manquantes dans les tickets: ${missingProps.join(', ')}`);
+      }
+    }
+    
+    return { tickets: formattedTickets };
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération des tickets du match" };
+    // Gestion d'erreur détaillée
+    console.error('Erreur lors de la récupération des tickets:', error);
+    
+    // Construire un message d'erreur significatif
+    let errorMessage = "Erreur lors de la récupération des tickets";
+    let errorDetails = {};
+    
+    if (error.response) {
+      // Erreur de réponse HTTP
+      errorMessage = `Erreur ${error.response.status} du serveur`;
+      errorDetails = {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers
+      };
+    } else if (error.request) {
+      // Pas de réponse reçue
+      errorMessage = "Le serveur n'a pas répondu à la requête";
+      errorDetails = {
+        request: error.request._currentUrl || error.request.responseURL || `${API_URL}${TICKETS_ENDPOINT}`,
+        method: error.config?.method || 'GET',
+        timeout: error.config?.timeout || 'inconnu'
+      };
+    } else {
+      // Erreur lors de la configuration de la requête
+      errorMessage = error.message || "Erreur inconnue";
+    }
+    
+    // Lancer une erreur avec un format standardisé
+    throw {
+      message: errorMessage,
+      details: errorDetails,
+      originalError: error
+    };
   }
 };
 
-// Récupérer un ticket par son ID
-export const getTicketById = async (ticketId) => {
+// Récupérer les détails d'un ticket spécifique
+export const getTicketDetails = async (ticketId) => {
   try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/tickets/${ticketId}`);
-    return response.data;
+    setAuthToken();
+    const response = await axios.get(`${API_URL}${TICKETS_ENDPOINT}/${ticketId}`);
+    return {
+      ticket: adaptTicketForFrontend(response.data.ticket)
+    };
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération du ticket" };
+    throw error.response?.data || { message: "Erreur lors de la récupération des détails du ticket" };
   }
 };
 
-// GESTION DES TICKETS
-
-// Ajouter un nouveau ticket
-export const addTicket = async (ticketData) => {
+// Mettre un ticket en vente (pour l'utilisateur connecté)
+export const createTicketForSale = async (ticketData) => {
   try {
-    setupAuthHeader();
-    const response = await axios.post(`${API_URL}/admin/tickets`, ticketData);
-    return response.data;
+    if (!setAuthToken()) {
+      throw { message: "Vous devez être connecté pour mettre un ticket en vente" };
+    }
+    const adaptedData = adaptTicketForDatabase(ticketData);
+    const response = await axios.post(`${API_URL}${TICKETS_ENDPOINT}`, adaptedData);
+    return {
+      ...response.data,
+      ticket: adaptTicketForFrontend(response.data.ticket)
+    };
   } catch (error) {
     throw error.response?.data || { message: "Erreur lors de la création du ticket" };
   }
 };
 
-// Mettre à jour un ticket existant
-export const updateTicket = async (ticketId, ticketData) => {
+// Acheter un ticket
+export const buyTicket = async (ticketId, paymentData) => {
   try {
-    setupAuthHeader();
-    const response = await axios.put(`${API_URL}/admin/tickets/${ticketId}`, ticketData);
+    if (!setAuthToken()) {
+      throw { message: "Vous devez être connecté pour acheter un ticket" };
+    }
+    const response = await axios.post(`${API_URL}${TICKETS_ENDPOINT}/${ticketId}/purchase`, paymentData);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la mise à jour du ticket" };
+    throw error.response?.data || { message: "Erreur lors de l'achat du ticket" };
   }
 };
 
-// Supprimer un ticket
+// Modifier un ticket (pour le vendeur seulement)
+export const updateTicket = async (ticketId, ticketData) => {
+  try {
+    if (!setAuthToken()) {
+      throw { message: "Vous devez être connecté pour modifier un ticket" };
+    }
+    const adaptedData = adaptTicketForDatabase(ticketData);
+    const response = await axios.put(`${API_URL}${TICKETS_ENDPOINT}/${ticketId}`, adaptedData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Erreur lors de la modification du ticket" };
+  }
+};
+
+// Supprimer un ticket (pour le vendeur seulement)
 export const deleteTicket = async (ticketId) => {
   try {
-    setupAuthHeader();
-    const response = await axios.delete(`${API_URL}/admin/tickets/${ticketId}`);
+    if (!setAuthToken()) {
+      throw { message: "Vous devez être connecté pour supprimer un ticket" };
+    }
+    const response = await axios.delete(`${API_URL}${TICKETS_ENDPOINT}/${ticketId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: "Erreur lors de la suppression du ticket" };
   }
 };
 
-// OPÉRATIONS SPÉCIALES
-
-// Renvoyer un ticket par email
-export const resendTicket = async (ticketId) => {
+// Récupérer les tickets mis en vente par l'utilisateur connecté
+export const getMyTicketsForSale = async () => {
   try {
-    setupAuthHeader();
-    const response = await axios.post(`${API_URL}/admin/tickets/${ticketId}/resend`);
-    return response.data;
+    if (!setAuthToken()) {
+      throw { message: "Vous devez être connecté pour voir vos tickets" };
+    }
+    const response = await axios.get(`${API_URL}${TICKETS_ENDPOINT}/my-sales`);
+    // Appliquer la transformation pour chaque ticket
+    const tickets = response.data.tickets.map(ticket => adaptTicketForFrontend(ticket));
+    return { tickets };
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors du renvoi du ticket par email" };
+    throw error.response?.data || { message: "Erreur lors de la récupération de vos tickets" };
   }
 };
 
-// Valider un ticket (utilisation pour entrée au stade)
-export const validateTicket = async (ticketId) => {
+// Récupérer les tickets achetés par l'utilisateur connecté
+export const getMyPurchasedTickets = async () => {
   try {
-    setupAuthHeader();
-    const response = await axios.post(`${API_URL}/admin/tickets/${ticketId}/validate`);
-    return response.data;
+    if (!setAuthToken()) {
+      throw { message: "Vous devez être connecté pour voir vos achats" };
+    }
+    const response = await axios.get(`${API_URL}${TICKETS_ENDPOINT}/my-purchases`);
+    // Appliquer la transformation pour chaque ticket
+    const tickets = response.data.tickets.map(ticket => adaptTicketForFrontend(ticket));
+    return { tickets };
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la validation du ticket" };
+    throw error.response?.data || { message: "Erreur lors de la récupération de vos achats" };
   }
 };
 
-// Marquer un ticket comme revendu
-export const markTicketAsResold = async (ticketId) => {
-  try {
-    setupAuthHeader();
-    const response = await axios.put(`${API_URL}/admin/tickets/${ticketId}/resold`, { estRevendu: true });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors du marquage du ticket comme revendu" };
+// Adapter les données du frontend au format de la base de données
+export const adaptTicketForDatabase = (ticket) => {
+  if (!ticket) return null;
+  
+  // Transformer estVendu en estRevendu pour la compatibilité avec la BDD
+  if ('estVendu' in ticket) {
+    const { estVendu, ...restTicket } = ticket;
+    return {
+      ...restTicket,
+      estRevendu: estVendu
+    };
   }
+  
+  return ticket;
 };
 
-// RAPPORTS ET STATISTIQUES
-
-// Télécharger le rapport de tous les tickets (format CSV)
-export const downloadTicketReport = async () => {
-  try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/tickets/report`, {
-      responseType: 'blob'
-    });
-    
-    // Créer un lien pour télécharger le fichier
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'rapport-tickets-can2025.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    return { success: true };
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors du téléchargement du rapport" };
+// Adapter les données de la base de données au format du frontend
+export const adaptTicketForFrontend = (ticket) => {
+  if (!ticket) return null;
+  
+  // Transformer estRevendu en estVendu pour la cohérence frontend
+  if ('estRevendu' in ticket) {
+    const { estRevendu, ...restTicket } = ticket;
+    return {
+      ...restTicket,
+      estVendu: estRevendu
+    };
   }
-};
-
-// Obtenir des statistiques sur les tickets
-export const getTicketStats = async () => {
-  try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/tickets/stats`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération des statistiques" };
-  }
-};
-
-// Obtenir les dernières activités liées aux tickets
-export const getTicketActivities = async (limit = 5) => {
-  try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/tickets/activities?limit=${limit}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération des activités" };
-  }
+  
+  return ticket;
 };

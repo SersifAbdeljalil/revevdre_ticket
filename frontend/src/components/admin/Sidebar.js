@@ -68,10 +68,7 @@ const Sidebar = () => {
             Tickets
           </NavLink>
           
-          <NavLink to="/admin/payments" className={({isActive}) => isActive ? "menu-item active" : "menu-item"}>
-            <span className="menu-icon"><FaMoneyBillWave /></span>
-            Paiements
-          </NavLink>
+       
         </div>
         
         <div className="menu-section">
@@ -110,10 +107,7 @@ const Sidebar = () => {
         
         <div className="menu-section">
           <div className="menu-section-title">SYSTÈME</div>
-          <NavLink to="/admin/settings" className={({isActive}) => isActive ? "menu-item active" : "menu-item"}>
-            <span className="menu-icon"><FaCog /></span>
-            Paramètres
-          </NavLink>
+      
           
           <NavLink to="/admin/help" className={({isActive}) => isActive ? "menu-item active" : "menu-item"}>
             <span className="menu-icon"><FaQuestionCircle /></span>

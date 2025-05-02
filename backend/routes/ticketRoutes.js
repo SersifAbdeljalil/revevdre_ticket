@@ -2,49 +2,71 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/db');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 
-// Middleware pour vérifier que l'utilisateur est admin
-router.use(protect, adminOnly);
-
-// --- GESTION DES TICKETS ---
-
-// Récupérer tous les tickets
-router.get('/tickets', async (req, res) => {
+// Récupérer tous les tickets disponibles à la vente
+router.get('/', async (req, res) => {
   try {
-    // Modifié pour ajouter client_id dans la table ticket
-    const [tickets] = await pool.execute(`
-      SELECT t.*, 
-        m.equipe1, m.equipe2, m.lieu, m.date as matchDate,
-        u.nom as clientNom, u.email as clientEmail
-      FROM ticket t
-      LEFT JOIN matchs m ON t.match_id = m.id
-      LEFT JOIN historique_achat ha ON t.id = ha.ticket_id
-      LEFT JOIN client c ON ha.client_id = c.id
-      LEFT JOIN utilisateur u ON c.id = u.id
-      ORDER BY t.id DESC
-    `);
+    // On peut filtrer par différents critères
+    const { matchId, status, minPrice, maxPrice } = req.query;
     
-    // Formatage des données pour le frontend
+    let query = `
+      SELECT 
+        t.id, t.prix, t.estRevendu,
+        m.id as matchId, m.date, m.lieu, m.equipe1, m.equipe2,
+        u.id as vendeurId, u.nom as vendeurNom, u.email as vendeurEmail 
+      FROM ticket t
+      JOIN matchs m ON t.match_id = m.id
+      JOIN utilisateur u ON t.vendeurId = u.id
+      WHERE 1=1
+    `;
+    
+    const queryParams = [];
+    
+    // Ajouter les filtres si présents
+    if (matchId) {
+      query += ' AND t.match_id = ?';
+      queryParams.push(matchId);
+    }
+    
+    if (status === 'available') {
+      query += ' AND t.estRevendu = 0';
+    } else if (status === 'sold') {
+      query += ' AND t.estRevendu = 1';
+    }
+    
+    if (minPrice) {
+      query += ' AND t.prix >= ?';
+      queryParams.push(minPrice);
+    }
+    
+    if (maxPrice) {
+      query += ' AND t.prix <= ?';
+      queryParams.push(maxPrice);
+    }
+    
+    // Tri par date du match puis par prix
+    query += ' ORDER BY m.date ASC, t.prix ASC';
+    
+    const [tickets] = await pool.execute(query, queryParams);
+    
+    // Restructurer les données pour le format souhaité
     const formattedTickets = tickets.map(ticket => ({
       id: ticket.id,
       prix: ticket.prix,
-      estRevendu: ticket.estRevendu === 1,
-      dateAchat: ticket.date_achat || new Date(),
-      matchId: ticket.match_id,
-      clientId: ticket.client_id,
+      estVendu: Boolean(ticket.estRevendu), // Adapter le nom pour la cohérence frontend
       match: {
-        id: ticket.match_id,
-        equipe1: ticket.equipe1,
-        equipe2: ticket.equipe2,
+        id: ticket.matchId,
+        date: ticket.date,
         lieu: ticket.lieu,
-        date: ticket.matchDate
+        equipe1: ticket.equipe1,
+        equipe2: ticket.equipe2
       },
-      client: ticket.clientNom ? {
-        id: ticket.client_id,
-        nom: ticket.clientNom,
-        email: ticket.clientEmail
-      } : null
+      vendeur: {
+        id: ticket.vendeurId,
+        nom: ticket.vendeurNom,
+        email: ticket.vendeurEmail
+      }
     }));
     
     res.status(200).json({ tickets: formattedTickets });
@@ -54,23 +76,105 @@ router.get('/tickets', async (req, res) => {
   }
 });
 
-// Récupérer un ticket par son ID
-router.get('/tickets/:id', async (req, res) => {
+// IMPORTANT: Routes spécifiques AVANT les routes paramétriques /:id
+
+// Récupérer les tickets mis en vente par l'utilisateur connecté
+router.get('/my-sales', protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const [tickets] = await pool.execute(`
+      SELECT 
+        t.id, t.prix, t.estRevendu,
+        m.id as matchId, m.date, m.lieu, m.equipe1, m.equipe2
+      FROM ticket t
+      JOIN matchs m ON t.match_id = m.id
+      WHERE t.vendeurId = ?
+      ORDER BY t.estRevendu ASC, m.date ASC
+    `, [userId]);
+    
+    // Formatage des tickets
+    const formattedTickets = tickets.map(ticket => ({
+      id: ticket.id,
+      prix: ticket.prix,
+      estVendu: Boolean(ticket.estRevendu), // Adapter le nom pour la cohérence frontend
+      match: {
+        id: ticket.matchId,
+        date: ticket.date,
+        lieu: ticket.lieu,
+        equipe1: ticket.equipe1,
+        equipe2: ticket.equipe2
+      }
+    }));
+    
+    res.status(200).json({ tickets: formattedTickets });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des tickets mis en vente:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Récupérer les tickets achetés par l'utilisateur connecté
+router.get('/my-purchases', protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const [tickets] = await pool.execute(`
+      SELECT 
+        t.id, t.prix,
+        m.id as matchId, m.date, m.lieu, m.equipe1, m.equipe2,
+        u.id as vendeurId, u.nom as vendeurNom, u.email as vendeurEmail,
+        ha.date_achat as dateAchat
+      FROM historique_achat ha
+      JOIN ticket t ON ha.ticket_id = t.id
+      JOIN matchs m ON t.match_id = m.id
+      JOIN utilisateur u ON t.vendeurId = u.id
+      WHERE ha.client_id = ?
+      ORDER BY ha.date_achat DESC
+    `, [userId]);
+    
+    // Formatage des tickets
+    const formattedTickets = tickets.map(ticket => ({
+      id: ticket.id,
+      prix: ticket.prix,
+      estVendu: true, // Ils ont déjà été achetés
+      dateAchat: ticket.dateAchat,
+      match: {
+        id: ticket.matchId,
+        date: ticket.date,
+        lieu: ticket.lieu,
+        equipe1: ticket.equipe1,
+        equipe2: ticket.equipe2
+      },
+      vendeur: {
+        id: ticket.vendeurId,
+        nom: ticket.vendeurNom,
+        email: ticket.vendeurEmail
+      }
+    }));
+    
+    res.status(200).json({ tickets: formattedTickets });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des tickets achetés:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// MAINTENANT les routes paramétriques /:id qui pourraient intercepter /my-sales ou /my-purchases
+
+// Récupérer un ticket spécifique par son ID
+router.get('/:id', async (req, res) => {
   try {
     const ticketId = req.params.id;
     
     const [tickets] = await pool.execute(`
-      SELECT t.*, 
-        m.equipe1, m.equipe2, m.lieu, m.date as matchDate,
-        u.nom as clientNom, u.email as clientEmail,
-        p.montant as paiementMontant, p.methode as paiementMethode, p.date as paiementDate,
-        ha.client_id, ha.date_achat
+      SELECT 
+        t.id, t.prix, t.estRevendu,
+        m.id as matchId, m.date, m.lieu, m.equipe1, m.equipe2,
+        u.id as vendeurId, u.nom as vendeurNom, u.email as vendeurEmail 
       FROM ticket t
-      LEFT JOIN matchs m ON t.match_id = m.id
-      LEFT JOIN historique_achat ha ON t.id = ha.ticket_id
-      LEFT JOIN client c ON ha.client_id = c.id
-      LEFT JOIN utilisateur u ON c.id = u.id
-      LEFT JOIN paiement p ON p.ticket_id = t.id
+      JOIN matchs m ON t.match_id = m.id
+      JOIN utilisateur u ON t.vendeurId = u.id
       WHERE t.id = ?
     `, [ticketId]);
     
@@ -80,31 +184,23 @@ router.get('/tickets/:id', async (req, res) => {
     
     const ticket = tickets[0];
     
-    // Formatage des données pour le frontend
+    // Formater la réponse
     const formattedTicket = {
       id: ticket.id,
       prix: ticket.prix,
-      estRevendu: ticket.estRevendu === 1,
-      dateAchat: ticket.date_achat || ticket.date_achat || new Date(),
-      matchId: ticket.match_id,
-      clientId: ticket.client_id,
+      estVendu: Boolean(ticket.estRevendu), // Adapter le nom pour la cohérence frontend
       match: {
-        id: ticket.match_id,
-        equipe1: ticket.equipe1,
-        equipe2: ticket.equipe2,
+        id: ticket.matchId,
+        date: ticket.date,
         lieu: ticket.lieu,
-        date: ticket.matchDate
+        equipe1: ticket.equipe1,
+        equipe2: ticket.equipe2
       },
-      client: ticket.clientNom ? {
-        id: ticket.client_id,
-        nom: ticket.clientNom,
-        email: ticket.clientEmail
-      } : null,
-      paiement: ticket.paiementMontant ? {
-        montant: ticket.paiementMontant,
-        methode: ticket.paiementMethode,
-        date: ticket.paiementDate
-      } : null
+      vendeur: {
+        id: ticket.vendeurId,
+        nom: ticket.vendeurNom,
+        email: ticket.vendeurEmail
+      }
     };
     
     res.status(200).json({ ticket: formattedTicket });
@@ -114,153 +210,128 @@ router.get('/tickets/:id', async (req, res) => {
   }
 });
 
-// Ajouter un nouveau ticket
-router.post('/tickets', async (req, res) => {
+// Créer un nouveau ticket à vendre (nécessite d'être connecté)
+router.post('/', protect, async (req, res) => {
   try {
-    const { matchId, clientId, prix, estRevendu = false } = req.body;
+    const { prix, matchId } = req.body;
+    const vendeurId = req.user.id;
     
-    // Validation des données
-    if (!matchId || !clientId || !prix) {
-      return res.status(400).json({ message: 'Les champs matchId, clientId et prix sont requis' });
+    // Validation
+    if (!prix || !matchId) {
+      return res.status(400).json({ message: 'Le prix et l\'ID du match sont requis' });
     }
     
     // Vérifier que le match existe
-    const [matchCheck] = await pool.execute(
-      'SELECT id FROM matchs WHERE id = ?',
-      [matchId]
-    );
-    
-    if (matchCheck.length === 0) {
+    const [matchRows] = await pool.execute('SELECT id FROM matchs WHERE id = ?', [matchId]);
+    if (matchRows.length === 0) {
       return res.status(404).json({ message: 'Match non trouvé' });
     }
     
-    // Vérifier que le client existe
-    const [clientCheck] = await pool.execute(
-      'SELECT id FROM client WHERE id = ?',
-      [clientId]
+    // Insérer le ticket (adapter à votre structure de base de données)
+    const [result] = await pool.execute(
+      'INSERT INTO ticket (prix, match_id, vendeurId, estRevendu) VALUES (?, ?, ?, 0)',
+      [prix, matchId, vendeurId]
     );
     
-    if (clientCheck.length === 0) {
-      return res.status(404).json({ message: 'Client non trouvé' });
-    }
+    // Récupérer le ticket créé
+    const [newTicket] = await pool.execute(`
+      SELECT 
+        t.id, t.prix, t.estRevendu,
+        m.id as matchId, m.date, m.lieu, m.equipe1, m.equipe2,
+        u.id as vendeurId, u.nom as vendeurNom, u.email as vendeurEmail 
+      FROM ticket t
+      JOIN matchs m ON t.match_id = m.id
+      JOIN utilisateur u ON t.vendeurId = u.id
+      WHERE t.id = ?
+    `, [result.insertId]);
     
-    // Début de transaction pour assurer l'intégrité des données
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
+    const ticket = newTicket[0];
     
-    try {
-      // Insérer le ticket - Notez que nous n'incluons pas client_id car il n'existe pas dans la table ticket
-      const [ticketResult] = await connection.execute(
-        'INSERT INTO ticket (prix, estRevendu, match_id) VALUES (?, ?, ?)',
-        [prix, estRevendu ? 1 : 0, matchId]
-      );
-      
-      const ticketId = ticketResult.insertId;
-      
-      // Créer une entrée dans l'historique des achats
-      await connection.execute(
-        'INSERT INTO historique_achat (client_id, ticket_id, date_achat) VALUES (?, ?, NOW())',
-        [clientId, ticketId]
-      );
-      
-      // Créer un enregistrement de paiement
-      await connection.execute(
-        'INSERT INTO paiement (montant, date, methode, client_id, ticket_id) VALUES (?, NOW(), ?, ?, ?)',
-        [prix, 'Carte bancaire', clientId, ticketId]
-      );
-      
-      // Valider la transaction
-      await connection.commit();
-      
-      res.status(201).json({
-        message: 'Ticket créé avec succès',
-        ticket: {
-          id: ticketId,
-          prix,
-          estRevendu,
-          matchId,
-          clientId,
-          dateAchat: new Date()
-        }
-      });
-    } catch (error) {
-      // Annuler la transaction en cas d'erreur
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
+    // Formater la réponse
+    const formattedTicket = {
+      id: ticket.id,
+      prix: ticket.prix,
+      estVendu: Boolean(ticket.estRevendu), // Adapter le nom pour la cohérence frontend
+      match: {
+        id: ticket.matchId,
+        date: ticket.date,
+        lieu: ticket.lieu,
+        equipe1: ticket.equipe1,
+        equipe2: ticket.equipe2
+      },
+      vendeur: {
+        id: ticket.vendeurId,
+        nom: ticket.vendeurNom,
+        email: ticket.vendeurEmail
+      }
+    };
+    
+    res.status(201).json({ 
+      message: 'Ticket mis en vente avec succès',
+      ticket: formattedTicket
+    });
   } catch (error) {
     console.error('Erreur lors de la création du ticket:', error);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
-// Mettre à jour un ticket
-router.put('/tickets/:id', async (req, res) => {
+// Acheter un ticket (nécessite d'être connecté)
+router.post('/:id/purchase', protect, async (req, res) => {
   try {
     const ticketId = req.params.id;
-    const { matchId, clientId, prix, estRevendu } = req.body;
+    const acheteurId = req.user.id;
+    const { methode } = req.body;
     
-    // Validation des données
-    if (!matchId || !clientId || prix === undefined) {
-      return res.status(400).json({ message: 'Les champs matchId, clientId et prix sont requis' });
-    }
-    
-    // Vérifier que le ticket existe
-    const [ticketCheck] = await pool.execute(
-      'SELECT id FROM ticket WHERE id = ?',
+    // Vérifier que le ticket existe et n'est pas déjà vendu
+    const [ticketRows] = await pool.execute(
+      'SELECT id, prix, vendeurId, estRevendu FROM ticket WHERE id = ?',
       [ticketId]
     );
     
-    if (ticketCheck.length === 0) {
+    if (ticketRows.length === 0) {
       return res.status(404).json({ message: 'Ticket non trouvé' });
     }
     
-    // Début de transaction
+    const ticket = ticketRows[0];
+    
+    if (ticket.estRevendu) {
+      return res.status(400).json({ message: 'Ce ticket a déjà été vendu' });
+    }
+    
+    if (ticket.vendeurId === acheteurId) {
+      return res.status(400).json({ message: 'Vous ne pouvez pas acheter votre propre ticket' });
+    }
+    
+    // Commencer une transaction
     const connection = await pool.getConnection();
     await connection.beginTransaction();
     
     try {
-      // Mettre à jour le ticket
+      // Marquer le ticket comme vendu
       await connection.execute(
-        'UPDATE ticket SET prix = ?, estRevendu = ?, match_id = ? WHERE id = ?',
-        [prix, estRevendu ? 1 : 0, matchId, ticketId]
-      );
-      
-      // Mettre à jour l'historique_achat pour le client
-      // D'abord, vérifier s'il existe déjà une entrée
-      const [historyCheck] = await connection.execute(
-        'SELECT client_id FROM historique_achat WHERE ticket_id = ?',
+        'UPDATE ticket SET estRevendu = 1 WHERE id = ?',
         [ticketId]
       );
       
-      if (historyCheck.length > 0) {
-        // Supprimer l'ancienne entrée
-        await connection.execute(
-          'DELETE FROM historique_achat WHERE ticket_id = ?',
-          [ticketId]
-        );
-      }
-      
-      // Insérer la nouvelle entrée
+      // Créer l'enregistrement de paiement
       await connection.execute(
-        'INSERT INTO historique_achat (client_id, ticket_id, date_achat) VALUES (?, ?, NOW())',
-        [clientId, ticketId]
+        'INSERT INTO paiement (montant, methode, client_id, ticket_id) VALUES (?, ?, ?, ?)',
+        [ticket.prix, methode || 'carte', acheteurId, ticketId]
+      );
+      
+      // Ajouter à l'historique d'achat
+      await connection.execute(
+        'INSERT INTO historique_achat (client_id, ticket_id) VALUES (?, ?)',
+        [acheteurId, ticketId]
       );
       
       // Valider la transaction
       await connection.commit();
       
-      res.status(200).json({
-        message: 'Ticket mis à jour avec succès',
-        ticket: {
-          id: parseInt(ticketId),
-          prix,
-          estRevendu,
-          matchId,
-          clientId
-        }
+      res.status(200).json({ 
+        message: 'Ticket acheté avec succès',
+        ticketId
       });
     } catch (error) {
       // Annuler la transaction en cas d'erreur
@@ -270,29 +341,80 @@ router.put('/tickets/:id', async (req, res) => {
       connection.release();
     }
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du ticket:', error);
+    console.error('Erreur lors de l\'achat du ticket:', error);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
-// Supprimer un ticket
-router.delete('/tickets/:id', async (req, res) => {
+// Modifier un ticket (seulement par le vendeur)
+router.put('/:id', protect, async (req, res) => {
   try {
     const ticketId = req.params.id;
+    const { prix } = req.body;
+    const userId = req.user.id;
     
-    // Vérifier que le ticket existe
-    const [ticketCheck] = await pool.execute(
-      'SELECT id FROM ticket WHERE id = ?',
+    // Vérifier que le ticket existe et appartient bien à l'utilisateur
+    const [ticketRows] = await pool.execute(
+      'SELECT id, vendeurId, estRevendu FROM ticket WHERE id = ?',
       [ticketId]
     );
     
-    if (ticketCheck.length === 0) {
+    if (ticketRows.length === 0) {
       return res.status(404).json({ message: 'Ticket non trouvé' });
     }
     
-    // Supprimer les références dans d'autres tables
-    await pool.execute('DELETE FROM historique_achat WHERE ticket_id = ?', [ticketId]);
-    await pool.execute('DELETE FROM paiement WHERE ticket_id = ?', [ticketId]);
+    const ticket = ticketRows[0];
+    
+    if (ticket.vendeurId !== userId) {
+      return res.status(403).json({ message: 'Vous ne pouvez pas modifier un ticket qui ne vous appartient pas' });
+    }
+    
+    if (ticket.estRevendu) {
+      return res.status(400).json({ message: 'Vous ne pouvez pas modifier un ticket déjà vendu' });
+    }
+    
+    // Modifier le ticket
+    await pool.execute(
+      'UPDATE ticket SET prix = ? WHERE id = ?',
+      [prix, ticketId]
+    );
+    
+    res.status(200).json({ 
+      message: 'Ticket modifié avec succès',
+      ticketId,
+      prix
+    });
+  } catch (error) {
+    console.error('Erreur lors de la modification du ticket:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Supprimer un ticket (seulement par le vendeur)
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const ticketId = req.params.id;
+    const userId = req.user.id;
+    
+    // Vérifier que le ticket existe et appartient bien à l'utilisateur
+    const [ticketRows] = await pool.execute(
+      'SELECT id, vendeurId, estRevendu FROM ticket WHERE id = ?',
+      [ticketId]
+    );
+    
+    if (ticketRows.length === 0) {
+      return res.status(404).json({ message: 'Ticket non trouvé' });
+    }
+    
+    const ticket = ticketRows[0];
+    
+    if (ticket.vendeurId !== userId) {
+      return res.status(403).json({ message: 'Vous ne pouvez pas supprimer un ticket qui ne vous appartient pas' });
+    }
+    
+    if (ticket.estRevendu) {
+      return res.status(400).json({ message: 'Vous ne pouvez pas supprimer un ticket déjà vendu' });
+    }
     
     // Supprimer le ticket
     await pool.execute('DELETE FROM ticket WHERE id = ?', [ticketId]);
@@ -300,95 +422,6 @@ router.delete('/tickets/:id', async (req, res) => {
     res.status(200).json({ message: 'Ticket supprimé avec succès' });
   } catch (error) {
     console.error('Erreur lors de la suppression du ticket:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-});
-
-// Renvoyer un ticket par email
-router.post('/tickets/:id/resend', async (req, res) => {
-  try {
-    const ticketId = req.params.id;
-    
-    // Vérifier que le ticket existe
-    const [ticketCheck] = await pool.execute(
-      'SELECT t.id, t.prix, t.estRevendu, t.match_id, ha.client_id, u.email as clientEmail, m.equipe1, m.equipe2, m.date as matchDate, m.lieu ' +
-      'FROM ticket t ' +
-      'JOIN historique_achat ha ON t.id = ha.ticket_id ' +
-      'JOIN client c ON ha.client_id = c.id ' +
-      'JOIN utilisateur u ON c.id = u.id ' +
-      'JOIN matchs m ON t.match_id = m.id ' +
-      'WHERE t.id = ?',
-      [ticketId]
-    );
-    
-    if (ticketCheck.length === 0) {
-      return res.status(404).json({ message: 'Ticket non trouvé' });
-    }
-    
-    const ticket = ticketCheck[0];
-    
-    // Ici, vous intégreriez l'envoi d'email
-    // Comme c'est une démonstration, on simule juste l'action réussie
-    
-    console.log(`Email envoyé à ${ticket.clientEmail} avec les détails du ticket #${ticketId} pour le match ${ticket.equipe1} vs ${ticket.equipe2}`);
-    
-    res.status(200).json({ 
-      message: 'Ticket renvoyé par email avec succès',
-      emailSent: true,
-      emailAddress: ticket.clientEmail
-    });
-  } catch (error) {
-    console.error('Erreur lors du renvoi du ticket par email:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-});
-
-// Valider un ticket (pour entrée au stade)
-router.post('/tickets/:id/validate', async (req, res) => {
-  try {
-    const ticketId = req.params.id;
-    
-    // Vérifier que le ticket existe et n'est pas revendu
-    const [ticketCheck] = await pool.execute(
-      'SELECT id, estRevendu FROM ticket WHERE id = ?',
-      [ticketId]
-    );
-    
-    if (ticketCheck.length === 0) {
-      return res.status(404).json({ message: 'Ticket non trouvé' });
-    }
-    
-    if (ticketCheck[0].estRevendu === 1) {
-      return res.status(400).json({ message: 'Ce ticket a été revendu et n\'est pas valide' });
-    }
-    
-    // Ici vous pourriez enregistrer l'utilisation du ticket dans une table dédiée
-    // Pour cette démonstration, nous allons simplement simuler une validation réussie
-    
-    res.status(200).json({ 
-      message: 'Ticket validé avec succès pour l\'entrée au stade',
-      validated: true,
-      ticketId
-    });
-  } catch (error) {
-    console.error('Erreur lors de la validation du ticket:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-});
-
-// Récupérer les clients (pour la création de tickets)
-router.get('/clients', async (req, res) => {
-  try {
-    const [clients] = await pool.execute(`
-      SELECT c.id, u.nom, u.email, u.estBloque
-      FROM client c
-      JOIN utilisateur u ON c.id = u.id
-      ORDER BY u.nom
-    `);
-    
-    res.status(200).json({ clients });
-  } catch (error) {
-    console.error('Erreur lors de la récupération des clients:', error);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });

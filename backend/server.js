@@ -9,11 +9,18 @@ const clientRoutes = require('./routes/clientRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const { protect } = require('./middleware/authMiddleware');
 
+// Initialisation de l'application Express
 const app = express();
 
-// Middlewares
+// Middlewares de base
 app.use(cors());
 app.use(express.json());
+
+// Middleware de logging pour le débogage
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // Fonction pour tester la connexion à la base de données
 const testDbConnection = async () => {
@@ -36,25 +43,37 @@ const testDbConnection = async () => {
   }
 };
 
-// Tester la connexion à la base de données
-testDbConnection();
+// Route simple pour tester le service de tickets
+app.get('/api/test-tickets', (req, res) => {
+  console.log('Route de test tickets appelée');
+  res.status(200).json({ message: 'La route de test fonctionne' });
+});
 
-// Routes
+// Définition des routes API
 app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes); // Nouvelles routes admin
-app.use('/api/admin', ticketRoutes);
-app.use('/api/admin', clientRoutes);
+app.use('/api/admin', adminRoutes);
 
-// Route pour vérifier la version de l'API
+// Route de tickets avec logging
+app.use('/api/tickets', (req, res, next) => {
+  console.log('Route /api/tickets interceptée');
+  next();
+}, ticketRoutes);
+
+app.use('/api/clients', clientRoutes);
+
+// Routes utilitaires
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.get('/api/version', (req, res) => {
-  res.json({ 
+  res.json({
     version: '1.0.0',
     name: 'API Revente Tickets CAN 2025',
     description: 'API pour la plateforme de revente de tickets de la CAN 2025'
   });
 });
 
-// Route d'API protégée de test pour vérifier l'authentification
 app.get('/api/profile', protect, (req, res) => {
   res.json({
     message: 'Profil accessible',
@@ -62,27 +81,40 @@ app.get('/api/profile', protect, (req, res) => {
   });
 });
 
-// Route de test
 app.get('/', (req, res) => {
   res.send('API de Revente Tickets CAN 2025');
 });
 
 // Gestion des erreurs 404
 app.use((req, res, next) => {
+  console.log(`[404] Route non trouvée: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ message: 'Route non trouvée' });
 });
 
 // Gestion des erreurs générales
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
+  console.error(`[ERROR] ${err.stack}`);
+  res.status(500).json({
     message: 'Une erreur est survenue sur le serveur',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
-  console.log(`API accessible à l'adresse: http://localhost:${PORT}`);
-});
+// Démarrage du serveur après vérification de la connexion à la DB
+const startServer = async () => {
+  const dbConnected = await testDbConnection();
+  
+  if (dbConnected) {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`Serveur démarré sur le port ${PORT}`);
+      console.log(`API accessible à l'adresse: http://localhost:${PORT}`);
+    });
+  } else {
+    console.error('Impossible de démarrer le serveur: problème de connexion à la base de données');
+    process.exit(1);
+  }
+};
+
+// Lancer le serveur
+startServer();

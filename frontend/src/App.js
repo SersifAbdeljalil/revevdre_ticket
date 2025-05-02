@@ -9,6 +9,7 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import UsersList from './components/admin/UserManagement/UsersList';
 import MatchesList from './components/admin/MatchManagement/MatchesList';
 import TicketsList from './components/admin/TicketManagement/TicketsList';
+import TicketDetail from './components/admin/TicketManagement/TicketDetails';
 import { getCurrentUserAPI } from './api/authAPI';
 import './App.css';
 
@@ -94,6 +95,13 @@ const App = () => {
           <Route path="/admin/tickets" element={
             <PrivateRoute 
               element={<TicketsList />} 
+              requiredRole="administrateur"
+            />
+          } />
+          {/* Ajout de la route pour les détails d'un ticket */}
+          <Route path="/admin/tickets/:id" element={
+            <PrivateRoute 
+              element={<TicketDetail />} 
               requiredRole="administrateur"
             />
           } />

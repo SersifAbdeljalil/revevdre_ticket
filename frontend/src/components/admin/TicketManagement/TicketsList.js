@@ -1,153 +1,138 @@
 // src/components/admin/TicketManagement/TicketsList.js
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FaTicketAlt, 
   FaSearch, 
   FaFilter, 
-  FaEllipsisV, 
-  FaEdit, 
-  FaTrash, 
-  FaEye, 
-  FaDownload,
-  FaPlus,
+  FaSortAmountDown, 
   FaMoneyBillWave,
+  FaEye,
   FaCalendarAlt,
-  FaUser,
-  FaSyncAlt
+  FaMapMarkerAlt,
+  FaUserAlt,
+  FaExclamationTriangle,
+  FaSync
 } from 'react-icons/fa';
-import { getAllTickets, deleteTicket, downloadTicketReport } from '../../../api/ticketAPI';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
-import TicketDetails from './TicketDetails';
-import AddTicket from './AddTicket';
+import { getAllTickets, checkApiHealth } from '../../../api/ticketAPI';
+import axios from 'axios';
 import '../AdminDashboard.css';
-
-// Composant pour le spinner de chargement
-const LoadingSpinner = () => (
-  <div className="loading">
-    <div className="loading-spinner"></div>
-    <div>Chargement des tickets...</div>
-    <div className="dot-loader">
-      <div className="dot"></div>
-      <div className="dot"></div>
-      <div className="dot"></div>
-    </div>
-  </div>
-);
 
 const TicketsList = () => {
   const [tickets, setTickets] = useState([]);
-  const [filteredTickets, setFilteredTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editTicket, setEditTicket] = useState(null);
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [ticketsPerPage] = useState(10);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('all'); // all, available, sold
+  const [sortBy, setSortBy] = useState('date_desc'); // date_desc, date_asc, price_asc, price_desc
   
-  // Charger les tickets
-  const loadTickets = async () => {
+  const navigate = useNavigate();
+  
+  // Fonction principale de chargement des tickets
+  const loadTickets = async (forceReload = false) => {
     try {
+      if (!forceReload && loading) return; // Éviter les chargements multiples
+      
       setLoading(true);
-      const data = await getAllTickets();
-      setTickets(data.tickets || []);
-      setFilteredTickets(data.tickets || []);
       setError('');
-    } catch (err) {
-      setError('Erreur lors du chargement des tickets');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  useEffect(() => {
-    loadTickets();
-  }, []);
-  
-  // Filtrer les tickets selon la recherche et le statut
-  useEffect(() => {
-    let results = tickets;
-    
-    // Filtre par recherche
-    if (searchTerm) {
-      results = results.filter(ticket => 
-        ticket.id.toString().includes(searchTerm) ||
-        ticket.match?.equipe1.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.match?.equipe2.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.client?.nom.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    // Filtre par statut
-    if (filterStatus !== 'all') {
-      results = results.filter(ticket => {
-        if (filterStatus === 'vendu') return !ticket.estRevendu;
-        if (filterStatus === 'revendu') return ticket.estRevendu;
-        return true;
-      });
-    }
-    
-    setFilteredTickets(results);
-    setCurrentPage(1); // Réinitialiser la pagination
-  }, [searchTerm, filterStatus, tickets]);
-  
-  // Supprimer un ticket
-  const handleDeleteTicket = async (ticketId) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce ticket ?')) {
+      console.log('Tentative de chargement des tickets...');
+
       try {
-        await deleteTicket(ticketId);
-        setTickets(tickets.filter(ticket => ticket.id !== ticketId));
-        setFilteredTickets(filteredTickets.filter(ticket => ticket.id !== ticketId));
-      } catch (err) {
-        setError('Erreur lors de la suppression du ticket');
-        console.error(err);
+        // Appel principal à l'API
+        console.log("Appel de getAllTickets...");
+        const data = await getAllTickets();
+        console.log('Données reçues de l\'API:', data);
+        
+        // Vérification de la structure des données
+        if (!data || !data.tickets) {
+          console.error('Format de réponse API invalide:', data);
+          throw new Error('Le format de la réponse API est invalide');
+        }
+        
+        // Traitement des données valides
+        if (data.tickets.length === 0) {
+          console.log('Aucun ticket trouvé');
+          setTickets([]);
+        } else {
+          console.log('Nombre de tickets chargés:', data.tickets.length);
+          setTickets(data.tickets);
+        }
+      } catch (apiError) {
+        console.error('Erreur lors de l\'appel API:', apiError);
+        
+        // Construire un message d'erreur significatif
+        let errorMessage = apiError.message || 'Erreur lors de la connexion à l\'API';
+        
+        if (apiError.response) {
+          errorMessage = `Erreur ${apiError.response.status}: ${apiError.response.data?.message || 'Erreur serveur'}`;
+        } else if (apiError.request) {
+          errorMessage = "Le serveur n'a pas répondu à la requête. Vérifiez les routes API.";
+        }
+        
+        throw new Error(errorMessage);
       }
-    }
-  };
-  
-  // Modifier un ticket
-  const handleEditTicket = (ticket) => {
-    setEditTicket(ticket);
-    setShowAddModal(true);
-  };
-  
-  // Voir les détails d'un ticket
-  const handleViewDetails = (ticket) => {
-    setSelectedTicket(ticket);
-    setShowDetailsModal(true);
-  };
-  
-  // Générer un rapport
-  const handleGenerateReport = async () => {
-    try {
-      setIsGeneratingReport(true);
-      await downloadTicketReport();
-      // Le téléchargement se fera automatiquement grâce à l'API
     } catch (err) {
-      setError('Erreur lors de la génération du rapport');
-      console.error(err);
+      console.error('Erreur générale:', err);
+      
+      // Données mockées pour le développement
+      const mockTickets = [
+        {
+          id: 1,
+          prix: 15000,
+          estVendu: false,
+          match: {
+            equipe1: 'PSG',
+            equipe2: 'Real Madrid',
+            lieu: 'Parc des Princes',
+            date: '2025-05-20T20:00:00'
+          },
+          vendeur: {
+            nom: 'Jean Dupont'
+          }
+        },
+        {
+          id: 2,
+          prix: 22000,
+          estVendu: true,
+          match: {
+            equipe1: 'Marseille',
+            equipe2: 'Lyon',
+            lieu: 'Stade Vélodrome',
+            date: '2025-06-05T19:00:00'
+          },
+          vendeur: {
+            nom: 'Marie Martin'
+          }
+        },
+        {
+          id: 3,
+          prix: 8500,
+          estVendu: false,
+          match: {
+            equipe1: 'Lille',
+            equipe2: 'Monaco',
+            lieu: 'Stade Pierre-Mauroy',
+            date: '2025-05-15T19:30:00'
+          },
+          vendeur: {
+            nom: 'Thomas Durand'
+          }
+        }
+      ];
+      
+      setTickets(mockTickets);
+      setError(`Données de démonstration (${err.message})`);
     } finally {
-      setIsGeneratingReport(false);
+      setTimeout(() => setLoading(false), 600);
     }
   };
   
-  // Formater la date
-  const formatDate = (dateString) => {
-    const options = { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-    return new Date(dateString).toLocaleDateString('fr-FR', options);
-  };
+  // Ne pas charger automatiquement les tickets au chargement du composant
+  // useEffect(() => {
+  //   loadTickets();
+  // }, []);
   
   // Formater le montant en FCFA
   const formatCurrency = (amount) => {
@@ -158,328 +143,365 @@ const TicketsList = () => {
     }).format(amount);
   };
   
-  // Pagination
-  const indexOfLastTicket = currentPage * ticketsPerPage;
-  const indexOfFirstTicket = indexOfLastTicket - ticketsPerPage;
-  const currentTickets = filteredTickets.slice(indexOfFirstTicket, indexOfLastTicket);
-  const totalPages = Math.ceil(filteredTickets.length / ticketsPerPage);
+  // Formater la date
+  const formatDate = (dateString) => {
+    try {
+      const options = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      };
+      return new Date(dateString).toLocaleDateString('fr-FR', options);
+    } catch (err) {
+      console.error('Erreur de formatage de date:', err);
+      return dateString || 'Date inconnue';
+    }
+  };
   
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  // Filtrer les tickets selon la recherche et le filtre
+  const filteredTickets = tickets.filter(ticket => {
+    // Protection contre les données nulles ou mal formatées
+    if (!ticket || !ticket.match) return false;
+    
+    // Filtre par texte de recherche
+    const matchesSearch = 
+      (ticket.match?.equipe1?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (ticket.match?.equipe2?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (ticket.match?.lieu?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (ticket.vendeur?.nom?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    
+    // Filtre par statut
+    let matchesStatus = true;
+    if (filterStatus === 'available') {
+      matchesStatus = !ticket.estVendu;
+    } else if (filterStatus === 'sold') {
+      matchesStatus = ticket.estVendu;
+    }
+    
+    return matchesSearch && matchesStatus;
+  });
+  
+  // Trier les tickets
+  const sortedTickets = [...filteredTickets].sort((a, b) => {
+    try {
+      switch (sortBy) {
+        case 'date_asc':
+          return new Date(a.match.date) - new Date(b.match.date);
+        case 'date_desc':
+          return new Date(b.match.date) - new Date(a.match.date);
+        case 'price_asc':
+          return a.prix - b.prix;
+        case 'price_desc':
+          return b.prix - a.prix;
+        default:
+          return 0;
+      }
+    } catch (err) {
+      console.error('Erreur pendant le tri:', err);
+      return 0;
+    }
+  });
+  
+  // Composant pour le spinner de chargement
+  const LoadingSpinner = () => (
+    <div className="loading">
+      <div className="loading-spinner"></div>
+      <div>Chargement des tickets...</div>
+      <div className="dot-loader">
+        <div className="dot"></div>
+        <div className="dot"></div>
+        <div className="dot"></div>
+      </div>
+    </div>
+  );
+  
+  // Voir les détails d'un ticket
+  const handleViewTicket = (ticketId) => {
+    // Naviguer vers la page de détails du ticket
+    navigate(`/admin/tickets/${ticketId}`);
+  };
+  
+  // Recharger les tickets
+  const handleRefresh = () => {
+    loadTickets(true);
+  };
   
   return (
     <div className="admin-layout">
       <Sidebar />
       <div className="admin-main">
-        <Header title="Gestion des tickets" />
+        <Header title="Gestion des Tickets" />
         
         <div className="dashboard-content">
-          {error && (
-            <div className="error-alert">
-              <FaTicketAlt />
-              {error}
-            </div>
-          )}
+          {/* Suppression de la barre de statut API */}
           
-          <div className="welcome-banner" style={{
-            background: 'linear-gradient(135deg, #ff6b01 0%, #ff9a44 100%)',
-            borderRadius: 'var(--border-radius-lg)',
-            padding: '30px',
-            marginBottom: '30px',
-            color: 'white',
-            boxShadow: 'var(--shadow-lg)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div className="fluid-animation" style={{ 
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              opacity: 0.2,
-              zIndex: 0
-            }}></div>
-            
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <h2 style={{ 
-                margin: '0 0 15px 0',
-                fontSize: '1.8rem',
-                fontWeight: '700'
-              }}>
-                Gestion des tickets CAN 2025
-              </h2>
-              
-              <p style={{ fontSize: '1.1rem', maxWidth: '800px', marginBottom: '20px' }}>
-                Gérez les tickets vendus, suivez les reventes et assurez un contrôle optimal de la billetterie pour tous les matchs.
-              </p>
-              
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <button 
-                  className="btn-3d" 
-                  style={{
-                    background: 'white',
-                    color: '#ff6b01',
-                    border: 'none',
-                    padding: '10px 20px',
-                    borderRadius: 'var(--border-radius-md)',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.95rem'
-                  }}
-                  onClick={() => setShowAddModal(true)}
-                >
-                  <FaPlus /> Ajouter un ticket
-                </button>
-                
-                <button 
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 20px',
-                    borderRadius: 'var(--border-radius-md)',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    backdropFilter: 'blur(5px)',
-                    fontSize: '0.95rem'
-                  }}
-                  onClick={handleGenerateReport}
-                  disabled={isGeneratingReport}
-                >
-                  {isGeneratingReport ? <FaSyncAlt className="fa-spin" /> : <FaDownload />}
-                  {isGeneratingReport ? 'Génération...' : 'Télécharger rapport'}
-                </button>
+          {error && (
+            <div className="error-alert" style={{
+              padding: '15px',
+              borderRadius: 'var(--border-radius)',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '15px',
+              background: 'rgba(220, 38, 38, 0.1)',
+              color: 'var(--error)',
+              border: '1px solid var(--error)',
+            }}>
+              <FaExclamationTriangle style={{ fontSize: '1.2rem' }} />
+              <div>
+                <div style={{ fontWeight: '600', marginBottom: '5px' }}>Attention</div>
+                <div>{error}</div>
               </div>
             </div>
-            
-            <div style={{
-              position: 'absolute',
-              right: '30px',
-              bottom: '-20px',
-              fontSize: '8rem',
-              opacity: '0.2',
-              transform: 'rotate(15deg)',
-              animation: 'float 3s ease-in-out infinite'
-            }}>
-              <FaTicketAlt />
-            </div>
-          </div>
+          )}
           
           <div className="dashboard-section">
             <div className="section-header">
               <h2>
                 <FaTicketAlt style={{ color: 'var(--primary)' }} />
-                Liste des tickets
+                Tickets disponibles à la vente
               </h2>
-              
-              <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div className="search-container">
-                  <input
-                    type="text"
-                    className="search-input"
-                    placeholder="Rechercher un ticket..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                  <FaSearch className="search-icon" />
-                </div>
-                
-                <div className="filter-container" style={{ position: 'relative' }}>
+              <div className="search-container">
+                <input 
+                  type="text" 
+                  className="search-input" 
+                  placeholder="Rechercher un ticket..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <FaSearch className="search-icon" />
+              </div>
+            </div>
+            
+            <div className="filter-sort-container" style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '20px',
+              flexWrap: 'wrap',
+              gap: '15px'
+            }}>
+              <div className="filter-options" style={{ display: 'flex', gap: '15px' }}>
+                <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <FaFilter style={{ color: 'var(--primary)' }} />
                   <select 
-                    className="form-control"
-                    style={{ paddingLeft: '35px', minWidth: '150px' }}
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
+                    className="form-control"
+                    style={{ width: 'auto', minWidth: '150px' }}
                   >
                     <option value="all">Tous les tickets</option>
-                    <option value="vendu">Vendus</option>
-                    <option value="revendu">Revendus</option>
+                    <option value="available">Disponibles</option>
+                    <option value="sold">Vendus</option>
                   </select>
-                  <FaFilter style={{ 
-                    position: 'absolute',
-                    left: '12px', 
-                    top: '50%', 
-                    transform: 'translateY(-50%)',
-                    color: '#888',
-                    pointerEvents: 'none'
-                  }} />
                 </div>
               </div>
+              
+              <div className="sort-options" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FaSortAmountDown style={{ color: 'var(--primary)' }} />
+                <select 
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="form-control"
+                  style={{ width: 'auto', minWidth: '180px' }}
+                >
+                  <option value="date_desc">Date (plus récent)</option>
+                  <option value="date_asc">Date (plus ancien)</option>
+                  <option value="price_asc">Prix (croissant)</option>
+                  <option value="price_desc">Prix (décroissant)</option>
+                </select>
+              </div>
+            </div>
+            
+            {/* Ajout d'un bouton Rafraîchir bien visible */}
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleRefresh}
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '10px',
+                  padding: '10px 25px',
+                  fontSize: '1rem'
+                }}
+              >
+                <FaSync /> Afficher les tickets
+              </button>
             </div>
             
             {loading ? (
               <LoadingSpinner />
-            ) : (
-              <>
-                {currentTickets.length > 0 ? (
-                  <div className="data-table-container">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>ID</th>
-                          <th>Match</th>
-                          <th>Date</th>
-                          <th>Client</th>
-                          <th>Prix</th>
-                          <th>Statut</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {currentTickets.map((ticket, index) => (
-                          <tr key={ticket.id} style={{ '--row-index': index }}>
-                            <td>#{ticket.id}</td>
-                            <td>
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '10px'
-                              }}>
-                                <span style={{ 
-                                  padding: '8px',
-                                  borderRadius: 'var(--border-radius-sm)',
-                                  background: 'var(--primary-gradient)',
-                                  color: 'white',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center'
-                                }}>
-                                  <FaCalendarAlt />
-                                </span>
-                                <div>
-                                  <strong>{ticket.match?.equipe1 || '?'}</strong> 
-                                  <span style={{ margin: '0 8px', opacity: '0.7' }}>VS</span> 
-                                  <strong>{ticket.match?.equipe2 || '?'}</strong>
-                                </div>
-                              </div>
-                            </td>
-                            <td>{formatDate(ticket.dateAchat || ticket.date || new Date())}</td>
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <FaUser style={{ color: 'var(--accent)' }} />
-                                {ticket.client?.nom || "Client inconnu"}
-                              </div>
-                            </td>
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '600', color: 'var(--primary)' }}>
-                                <FaMoneyBillWave />
-                                {formatCurrency(ticket.prix || 0)}
-                              </div>
-                            </td>
-                            <td>
-                              <span className={`status-badge ${ticket.estRevendu ? 'blocked' : 'active'}`}>
-                                {ticket.estRevendu ? 'Revendu' : 'Vendu'}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="table-actions">
-                                <button 
-                                  className="btn btn-sm btn-accent tooltip"
-                                  onClick={() => handleViewDetails(ticket)}
-                                >
-                                  <FaEye />
-                                  <span className="tooltip-text">Voir les détails</span>
-                                </button>
-                                
-                                <button 
-                                  className="btn btn-sm btn-primary tooltip"
-                                  onClick={() => handleEditTicket(ticket)}
-                                >
-                                  <FaEdit />
-                                  <span className="tooltip-text">Modifier</span>
-                                </button>
-                                
-                                <button 
-                                  className="btn btn-sm btn-danger tooltip"
-                                  onClick={() => handleDeleteTicket(ticket.id)}
-                                >
-                                  <FaTrash />
-                                  <span className="tooltip-text">Supprimer</span>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    
-                    <div className="data-table-pagination">
-                      <div className="pagination-info">
-                        Affichage de {Math.min(indexOfFirstTicket + 1, filteredTickets.length)} à {Math.min(indexOfLastTicket, filteredTickets.length)} sur {filteredTickets.length} tickets
+            ) : sortedTickets.length > 0 ? (
+              <div className="tickets-grid" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+                gap: '25px'
+              }}>
+                {sortedTickets.map((ticket, index) => (
+                  <div 
+                    key={ticket.id} 
+                    className="ticket-card" 
+                    style={{ 
+                      backgroundColor: 'white',
+                      borderRadius: 'var(--border-radius-lg)',
+                      overflow: 'hidden',
+                      boxShadow: 'var(--shadow-md)',
+                      transition: 'all var(--transition-normal)',
+                      animation: `fadeInUp ${0.3 + index * 0.05}s ease-out`,
+                      border: ticket.estVendu ? '2px solid var(--error)' : '2px solid var(--success)'
+                    }}
+                    onClick={() => handleViewTicket(ticket.id)}
+                  >
+                    <div className="ticket-header" style={{ 
+                      background: ticket.estVendu ? 'linear-gradient(135deg, #ff3d57 0%, #ff5f7e 100%)' : 'var(--accent-gradient)',
+                      color: 'white',
+                      padding: '15px 20px',
+                      borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+                      position: 'relative'
+                    }}>
+                      <div style={{ 
+                        position: 'absolute', 
+                        top: '10px', 
+                        right: '10px', 
+                        backgroundColor: ticket.estVendu ? 'var(--error)' : 'var(--success)',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        padding: '4px 8px',
+                        borderRadius: '12px'
+                      }}>
+                        {ticket.estVendu ? 'Vendu' : 'Disponible'}
                       </div>
                       
-                      <div className="pagination-controls">
-                        <button 
-                          className={`page-btn ${currentPage === 1 ? 'disabled' : ''}`}
-                          onClick={() => currentPage > 1 && paginate(currentPage - 1)}
-                          disabled={currentPage === 1}
-                        >
-                          &laquo;
-                        </button>
-                        
-                        {[...Array(totalPages).keys()].map(number => (
-                          <button
-                            key={number + 1}
-                            onClick={() => paginate(number + 1)}
-                            className={`page-btn ${currentPage === number + 1 ? 'active' : ''}`}
-                          >
-                            {number + 1}
-                          </button>
-                        ))}
-                        
-                        <button 
-                          className={`page-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-                          onClick={() => currentPage < totalPages && paginate(currentPage + 1)}
-                          disabled={currentPage === totalPages}
-                        >
-                          &raquo;
-                        </button>
+                      <div style={{ 
+                        fontSize: '1.5rem', 
+                        fontWeight: '700',
+                        marginBottom: '5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                      }}>
+                        <FaTicketAlt />
+                        <span>
+                          {ticket.match.equipe1} vs {ticket.match.equipe2}
+                        </span>
+                      </div>
+                      
+                      <div style={{ 
+                        fontSize: '1.1rem', 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        gap: '5px',
+                        opacity: '0.9'
+                      }}>
+                        <FaCalendarAlt style={{ fontSize: '0.9rem' }} />
+                        {formatDate(ticket.match.date)}
                       </div>
                     </div>
+                    
+                    <div className="ticket-body" style={{ padding: '20px' }}>
+                      <div className="ticket-info-list" style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        gap: '15px'
+                      }}>
+                        <div className="ticket-info-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ 
+                            width: '32px', 
+                            height: '32px', 
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(255, 107, 1, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--primary)'
+                          }}>
+                            <FaMapMarkerAlt />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.85rem', color: '#888' }}>Lieu</div>
+                            <div style={{ fontWeight: '500' }}>{ticket.match.lieu}</div>
+                          </div>
+                        </div>
+                        
+                        <div className="ticket-info-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ 
+                            width: '32px', 
+                            height: '32px', 
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(255, 192, 0, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--secondary)'
+                          }}>
+                            <FaMoneyBillWave />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.85rem', color: '#888' }}>Prix</div>
+                            <div style={{ 
+                              fontWeight: '700', 
+                              fontSize: '1.1rem', 
+                              color: 'var(--primary)'
+                            }}>
+                              {formatCurrency(ticket.prix)}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="ticket-info-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ 
+                            width: '32px', 
+                            height: '32px', 
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(107, 72, 255, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--purple)'
+                          }}>
+                            <FaUserAlt />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.85rem', color: '#888' }}>Vendeur</div>
+                            <div style={{ fontWeight: '500' }}>{ticket.vendeur?.nom || 'Non spécifié'}</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <button className="btn btn-primary btn-block" style={{ 
+                        width: '100%',
+                        marginTop: '20px'
+                      }}>
+                        <FaEye /> Voir les détails
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <div className="no-data">
-                    <div className="no-data-icon"><FaTicketAlt /></div>
-                    {searchTerm || filterStatus !== 'all' 
-                      ? "Aucun ticket ne correspond à vos critères de recherche" 
-                      : "Aucun ticket disponible"}
-                  </div>
-                )}
-              </>
+                ))}
+              </div>
+            ) : (
+              <div className="no-data">
+                <div className="no-data-icon"><FaTicketAlt /></div>
+                <p>Aucun ticket disponible. Cliquez sur le bouton "Afficher les tickets" pour charger les données.</p>
+              </div>
+            )}
+            
+            {!loading && sortedTickets.length > 0 && (
+              <div className="data-table-pagination" style={{ marginTop: '30px' }}>
+                <div className="pagination-info">
+                  Affichage de <strong>{sortedTickets.length}</strong> tickets
+                </div>
+                <div className="pagination-controls">
+                  <button className="page-btn">1</button>
+                </div>
+              </div>
             )}
           </div>
         </div>
       </div>
-      
-      {/* Modal d'ajout/modification de ticket */}
-      {showAddModal && (
-        <AddTicket 
-          ticket={editTicket}
-          onClose={() => {
-            setShowAddModal(false);
-            setEditTicket(null);
-          }}
-          onSave={() => {
-            setShowAddModal(false);
-            setEditTicket(null);
-            loadTickets();
-          }}
-        />
-      )}
-      
-      {/* Modal de détails de ticket */}
-      {showDetailsModal && selectedTicket && (
-        <TicketDetails 
-          ticket={selectedTicket}
-          onClose={() => setShowDetailsModal(false)}
-        />
-      )}
     </div>
   );
 };
