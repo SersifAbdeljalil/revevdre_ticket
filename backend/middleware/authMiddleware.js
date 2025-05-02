@@ -4,11 +4,11 @@ const { pool } = require('../config/db');
 
 // Middleware pour protéger les routes (vérifier si l'utilisateur est connecté)
 const protect = async (req, res, next) => {
-  let token;
-  
-  // Vérifier si le token est dans le header d'autorisation
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
+  try {
+    let token;
+    
+    // Vérifier si le token est dans le header d'autorisation
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       // Récupérer le token du header
       token = req.headers.authorization.split(' ')[1];
       
@@ -33,17 +33,17 @@ const protect = async (req, res, next) => {
       // Ajouter l'utilisateur à la requête
       req.user = userRows[0];
       next();
-    } catch (error) {
-      console.error('Erreur d\'authentification:', error);
-      res.status(401).json({ message: 'Non autorisé, token invalide' });
+    } else {
+      return res.status(401).json({ message: 'Non autorisé, aucun token fourni' });
     }
-  } else if (!token) {
-    res.status(401).json({ message: 'Non autorisé, aucun token fourni' });
+  } catch (error) {
+    console.error('Erreur d\'authentification:', error);
+    return res.status(401).json({ message: 'Non autorisé, token invalide' });
   }
 };
 
 // Middleware pour vérifier si l'utilisateur est administrateur
-const adminOnly = (req, res, next) => {
+const admin = (req, res, next) => {
   if (req.user && req.user.role === 'administrateur') {
     next();
   } else {
@@ -51,4 +51,4 @@ const adminOnly = (req, res, next) => {
   }
 };
 
-module.exports = { protect, adminOnly };
+module.exports = { protect, admin };

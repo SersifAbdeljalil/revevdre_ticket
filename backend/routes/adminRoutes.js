@@ -2,10 +2,20 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/db');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 
 // Middleware pour vérifier que l'utilisateur est admin
-router.use(protect, adminOnly);
+const adminOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'administrateur') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Accès refusé, droits administrateur requis' });
+  }
+};
+
+// Utiliser les middlewares
+router.use(protect);
+router.use(adminOnly);
 
 // --- GESTION DES UTILISATEURS ---
 

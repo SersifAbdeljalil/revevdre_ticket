@@ -1,7 +1,7 @@
 // src/components/home/HomePage.js
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaTicketAlt, FaArrowRight, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaFacebook, FaTwitter, FaInstagram } from 'react-icons/fa';
+import { FaTicketAlt, FaArrowRight, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaFacebook, FaTwitter, FaInstagram ,} from 'react-icons/fa';
 import useInitAnimations from './Animation';
 
 // Importation des images

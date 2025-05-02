@@ -2155,3 +2155,222 @@ input:checked + .slider:before {
     display: none;
   }
 }
+/* Styles pour le badge de notification dans la sidebar */
+.sidebar-badge {
+  background-color: var(--primary, #FF6B01);
+  color: white;
+  font-size: 0.7rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  font-weight: bold;
+}
+
+/* Styles pour le menu item actif avec un badge */
+.menu-item.active .sidebar-badge {
+  background-color: white;
+  color: var(--primary, #FF6B01);
+}
+
+/* Animation pour les nouvelles notifications */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.sidebar-badge:not(:empty) {
+  animation: pulse 1.5s infinite;
+}
+/* Styles pour les notifications dans le Header */
+
+/* Badge de notification */
+.notification-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background-color: var(--primary, #FF6B01);
+  color: white;
+  font-size: 0.7rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  border: 2px solid white;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Bouton de notification */
+.notification-btn {
+  position: relative;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #555;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.notification-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Dropdown des notifications */
+.notification-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 320px;
+  max-height: 500px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Entête du dropdown */
+.notification-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notification-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.mark-all-read {
+  background: none;
+  border: none;
+  color: var(--primary, #FF6B01);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.mark-all-read:hover {
+  background-color: rgba(255, 107, 1, 0.1);
+}
+
+/* Corps du dropdown */
+.notification-body {
+  overflow-y: auto;
+  max-height: 350px;
+}
+
+/* Item de notification */
+.notification-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f5f5f5;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+  background-color: #f9f9f9;
+}
+
+/* Icône de notification */
+.notification-icon {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.notification-icon.primary {
+  background-color: var(--primary, #FF6B01);
+}
+
+.notification-icon.secondary {
+  background-color: #2196F3;
+}
+
+.notification-icon.accent {
+  background-color: #4CAF50);
+}
+
+/* Contenu de la notification */
+.notification-content {
+  flex: 1;
+}
+
+.notification-text {
+  font-size: 0.85rem;
+  color: #444;
+  margin: 4px 0;
+  line-height: 1.3;
+}
+
+.notification-time {
+  font-size: 0.75rem;
+  color: #888;
+  margin: 2px 0 0;
+}
+
+/* Pied du dropdown */
+.notification-footer {
+  padding: 8px;
+  border-top: 1px solid #eee;
+}
+
+.view-all-link {
+  display: block;
+  text-align: center;
+  color: var(--primary, #FF6B01);
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.view-all-link:hover {
+  background-color: rgba(255, 107, 1, 0.05);
+}

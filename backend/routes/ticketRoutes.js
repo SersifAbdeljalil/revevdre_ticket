@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/db');
 const { protect } = require('../middleware/authMiddleware');
+const notificationService = require('../services/notificationService');
 
 // Récupérer tous les tickets disponibles à la vente
 router.get('/', async (req, res) => {
@@ -222,10 +223,12 @@ router.post('/', protect, async (req, res) => {
     }
     
     // Vérifier que le match existe
-    const [matchRows] = await pool.execute('SELECT id FROM matchs WHERE id = ?', [matchId]);
+    const [matchRows] = await pool.execute('SELECT * FROM matchs WHERE id = ?', [matchId]);
     if (matchRows.length === 0) {
       return res.status(404).json({ message: 'Match non trouvé' });
     }
+    
+    const match = matchRows[0];
     
     // Insérer le ticket (adapter à votre structure de base de données)
     const [result] = await pool.execute(
@@ -265,6 +268,17 @@ router.post('/', protect, async (req, res) => {
         email: ticket.vendeurEmail
       }
     };
+    
+    // Récupérer les informations de l'utilisateur
+    const [userRows] = await pool.execute(
+      'SELECT * FROM utilisateur WHERE id = ?',
+      [vendeurId]
+    );
+    
+    const user = userRows[0];
+    
+    // Ajouter une notification pour l'administrateur
+    await notificationService.addTicketNotification(formattedTicket, user, match);
     
     res.status(201).json({ 
       message: 'Ticket mis en vente avec succès',

@@ -5,8 +5,8 @@ const cors = require('cors');
 const { pool } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const clientRoutes = require('./routes/clientRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const { protect } = require('./middleware/authMiddleware');
 
 // Initialisation de l'application Express
@@ -27,14 +27,14 @@ const testDbConnection = async () => {
   try {
     const connection = await pool.getConnection();
     console.log('Connexion à la base de données MySQL établie avec succès');
-    
+   
     // Vérification de la structure de la base de données
     const [tables] = await connection.query('SHOW TABLES');
     console.log('Tables disponibles dans la base de données:');
     tables.forEach(table => {
       console.log(`- ${Object.values(table)[0]}`);
     });
-    
+   
     connection.release();
     return true;
   } catch (error) {
@@ -43,29 +43,18 @@ const testDbConnection = async () => {
   }
 };
 
-// Route simple pour tester le service de tickets
-app.get('/api/test-tickets', (req, res) => {
-  console.log('Route de test tickets appelée');
-  res.status(200).json({ message: 'La route de test fonctionne' });
-});
-
 // Définition des routes API
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-
 // Route de tickets avec logging
 app.use('/api/tickets', (req, res, next) => {
   console.log('Route /api/tickets interceptée');
   next();
 }, ticketRoutes);
-
-app.use('/api/clients', clientRoutes);
+// Route de notifications
+app.use('/api/notifications', notificationRoutes);
 
 // Routes utilitaires
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 app.get('/api/version', (req, res) => {
   res.json({
     version: '1.0.0',
@@ -85,25 +74,10 @@ app.get('/', (req, res) => {
   res.send('API de Revente Tickets CAN 2025');
 });
 
-// Gestion des erreurs 404
-app.use((req, res, next) => {
-  console.log(`[404] Route non trouvée: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ message: 'Route non trouvée' });
-});
-
-// Gestion des erreurs générales
-app.use((err, req, res, next) => {
-  console.error(`[ERROR] ${err.stack}`);
-  res.status(500).json({
-    message: 'Une erreur est survenue sur le serveur',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
-
 // Démarrage du serveur après vérification de la connexion à la DB
 const startServer = async () => {
   const dbConnected = await testDbConnection();
-  
+ 
   if (dbConnected) {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {

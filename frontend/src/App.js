@@ -10,6 +10,8 @@ import UsersList from './components/admin/UserManagement/UsersList';
 import MatchesList from './components/admin/MatchManagement/MatchesList';
 import TicketsList from './components/admin/TicketManagement/TicketsList';
 import TicketDetail from './components/admin/TicketManagement/TicketDetails';
+import AdminNotifications from './components/admin/Notifications/AdminNotifications';
+import AdminHelpSupport from './components/admin/HelpSupport/AdminHelpSupport'; // Import du composant d'aide
 import { getCurrentUserAPI } from './api/authAPI';
 import './App.css';
 
@@ -102,6 +104,20 @@ const App = () => {
           <Route path="/admin/tickets/:id" element={
             <PrivateRoute 
               element={<TicketDetail />} 
+              requiredRole="administrateur"
+            />
+          } />
+          {/* Ajout de la route pour les notifications */}
+          <Route path="/admin/notifications" element={
+            <PrivateRoute 
+              element={<AdminNotifications />} 
+              requiredRole="administrateur"
+            />
+          } />
+          {/* Ajout de la route pour l'aide et le support */}
+          <Route path="/admin/help" element={
+            <PrivateRoute 
+              element={<AdminHelpSupport />} 
               requiredRole="administrateur"
             />
           } />

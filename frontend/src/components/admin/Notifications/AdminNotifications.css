@@ -1,0 +1,215 @@
+/* src/components/admin/Notifications/AdminNotifications.css */
+
+.admin-card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin: 20px;
+    overflow: hidden;
+  }
+  
+  .card-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .card-header h2 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    font-size: 1.5rem;
+    color: #333;
+  }
+  
+  .notification-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .filter-container {
+    display: flex;
+    align-items: center;
+  }
+  
+  .filter-select {
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background-color: white;
+    font-size: 0.9rem;
+    min-width: 150px;
+  }
+  
+  .mark-all-read-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 15px;
+    border-radius: 4px;
+    background-color: white;
+    border: 1px solid var(--primary, #FF6B01);
+    color: var(--primary, #FF6B01);
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.9rem;
+  }
+  
+  .mark-all-read-btn:hover {
+    background-color: rgba(255, 107, 1, 0.1);
+  }
+  
+  .card-body {
+    padding: 0;
+  }
+  
+  .loading-container, .error-container, .empty-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+    color: #666;
+  }
+  
+  .loading-spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top: 4px solid var(--primary, #FF6B01);
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .notifications-list {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .notification-item {
+    padding: 15px 20px;
+    border-bottom: 1px solid #f5f5f5;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    transition: background-color 0.2s;
+  }
+  
+  .notification-item:hover {
+    background-color: #f9f9f9;
+  }
+  
+  .notification-item:last-child {
+    border-bottom: none;
+  }
+  
+  .notification-item.unread {
+    background-color: rgba(255, 107, 1, 0.05);
+  }
+  
+  /* Icônes des notifications */
+  .notification-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: white;
+    flex-shrink: 0;
+  }
+  
+  .notification-icon.ticket {
+    background-color: var(--primary, #FF6B01);
+  }
+  
+  .notification-icon.user {
+    background-color: #2196F3;
+  }
+  
+  .notification-icon.system {
+    background-color: #4CAF50;
+  }
+  
+  /* Contenu des notifications */
+  .notification-content {
+    flex: 1;
+  }
+  
+  .notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 5px;
+  }
+  
+  .notification-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .notification-time {
+    color: #888;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    margin-left: 10px;
+  }
+  
+  .notification-text {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #555;
+    line-height: 1.4;
+  }
+  
+  .notification-link {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--primary, #FF6B01);
+    text-decoration: underline;
+  }
+  
+  /* Actions sur les notifications */
+  .notification-actions {
+    display: flex;
+    gap: 5px;
+  }
+  
+  .action-btn {
+    background: none;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: #777;
+  }
+  
+  .action-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  .mark-read-btn:hover {
+    color: var(--primary, #FF6B01);
+  }
+  
+  .delete-btn:hover {
+    color: #f44336;
+  }
