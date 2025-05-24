@@ -5,6 +5,7 @@ const cors = require('cors');
 const { pool } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const clientRoutes = require('./routes/clientRoutes'); // Ajout des routes client
 const ticketRoutes = require('./routes/ticketRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const { protect } = require('./middleware/authMiddleware');
@@ -27,14 +28,14 @@ const testDbConnection = async () => {
   try {
     const connection = await pool.getConnection();
     console.log('Connexion à la base de données MySQL établie avec succès');
-   
+
     // Vérification de la structure de la base de données
     const [tables] = await connection.query('SHOW TABLES');
     console.log('Tables disponibles dans la base de données:');
     tables.forEach(table => {
       console.log(`- ${Object.values(table)[0]}`);
     });
-   
+
     connection.release();
     return true;
   } catch (error) {
@@ -46,6 +47,7 @@ const testDbConnection = async () => {
 // Définition des routes API
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/client', clientRoutes); // Ajout des routes client
 // Route de tickets avec logging
 app.use('/api/tickets', (req, res, next) => {
   console.log('Route /api/tickets interceptée');
@@ -77,7 +79,7 @@ app.get('/', (req, res) => {
 // Démarrage du serveur après vérification de la connexion à la DB
 const startServer = async () => {
   const dbConnected = await testDbConnection();
- 
+
   if (dbConnected) {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {

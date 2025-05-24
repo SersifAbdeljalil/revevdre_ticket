@@ -1,0 +1,65 @@
+-- Création de la base de données
+CREATE DATABASE IF NOT EXISTS revente_tickets_can2025;
+USE revente_tickets_can2025;
+
+-- Table Utilisateur (classe de base)
+CREATE TABLE IF NOT EXISTS utilisateur (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    motDePasse VARCHAR(255) NOT NULL,
+    role ENUM('client', 'administrateur') NOT NULL DEFAULT 'client',
+    estBloque BOOLEAN DEFAULT FALSE
+);
+
+-- Table Client (hérite d'Utilisateur)
+CREATE TABLE IF NOT EXISTS client (
+    id INT PRIMARY KEY,
+    FOREIGN KEY (id) REFERENCES utilisateur(id) ON DELETE CASCADE
+);
+
+-- Table Administrateur (hérite d'Utilisateur)
+CREATE TABLE IF NOT EXISTS administrateur (
+    id INT PRIMARY KEY,
+    FOREIGN KEY (id) REFERENCES utilisateur(id) ON DELETE CASCADE
+);
+
+-- Table Match
+CREATE TABLE IF NOT EXISTS matchs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    date DATETIME NOT NULL,
+    lieu VARCHAR(100) NOT NULL,
+    equipe1 VARCHAR(100) NOT NULL,
+    equipe2 VARCHAR(100) NOT NULL
+);
+
+-- Table Ticket
+CREATE TABLE IF NOT EXISTS ticket (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    prix DOUBLE NOT NULL,
+    estRevendu BOOLEAN DEFAULT FALSE,
+    match_id INT NOT NULL,
+    FOREIGN KEY (match_id) REFERENCES matchs(id) ON DELETE CASCADE
+);
+
+-- Table Paiement
+CREATE TABLE IF NOT EXISTS paiement (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    montant DOUBLE NOT NULL,
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    methode VARCHAR(50) NOT NULL,
+    client_id INT NOT NULL,
+    ticket_id INT NOT NULL,
+    FOREIGN KEY (client_id) REFERENCES client(id) ON DELETE CASCADE,
+    FOREIGN KEY (ticket_id) REFERENCES ticket(id) ON DELETE CASCADE
+);
+
+-- Table d'association pour l'historique des achats
+CREATE TABLE IF NOT EXISTS historique_achat (
+    client_id INT NOT NULL,
+    ticket_id INT NOT NULL,
+    date_achat DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (client_id, ticket_id),
+    FOREIGN KEY (client_id) REFERENCES client(id) ON DELETE CASCADE,
+    FOREIGN KEY (ticket_id) REFERENCES ticket(id) ON DELETE CASCADE
+);

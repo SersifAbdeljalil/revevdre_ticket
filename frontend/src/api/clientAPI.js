@@ -1,176 +1,76 @@
-// src/api/clientAPI.js
 import axios from 'axios';
-import { getCurrentUserAPI } from './authAPI';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5000/api/client';
 
-// Configurer axios pour les requêtes authentifiées
-const setupAuthHeader = () => {
-  const user = getCurrentUserAPI();
+const setupAuthRequest = () => {
+  const user = JSON.parse(localStorage.getItem('user'));
   if (user && user.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${user.token}`;
     return true;
   }
-  throw new Error('Utilisateur non authentifié');
+  throw new Error('Non autorisé : utilisateur non connecté');
 };
 
-// Récupérer tous les clients
-export const getAllClients = async () => {
+// --- GESTION DES MATCHS (unchanged) ---
+
+export const getAllMatches = async () => {
   try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/clients`);
+    setupAuthRequest();
+    const response = await axios.get(`${API_URL}/matches`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération des clients" };
+    throw error.response?.data || error;
   }
 };
 
-// Récupérer un client par son ID
-export const getClientById = async (clientId) => {
+export const getMatchDetails = async (matchId) => {
   try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/clients/${clientId}`);
+    setupAuthRequest();
+    const response = await axios.get(`${API_URL}/matches/${matchId}`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération du client" };
+    throw error.response?.data || error;
   }
 };
 
-// Rechercher des clients
-export const searchClients = async (searchTerm) => {
+export const buyTicket = async (matchId, quantity) => {
   try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/clients/search?q=${searchTerm}`);
+    setupAuthRequest();
+    const response = await axios.post(`${API_URL}/matches/${matchId}/buy`, { quantity });
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la recherche de clients" };
+    throw error.response?.data || error;
   }
 };
 
-// Obtenir les statistiques des clients
-export const getClientStats = async () => {
+// --- GESTION DES TICKETS ---
+
+export const createTicketForSale = async (ticketData) => {
   try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/clients/stats`);
+    setupAuthRequest();
+    const response = await axios.post(`${API_URL}/tickets/sell`, ticketData);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération des statistiques" };
+    throw error.response?.data || error;
   }
 };
 
-// Ajouter un nouveau client rapidement (fonctionnalité spéciale pour création de ticket)
-export const addQuickClient = async (clientData) => {
+export const getPurchasedTickets = async () => {
   try {
-    setupAuthHeader();
-    const response = await axios.post(`${API_URL}/admin/clients/quick`, clientData);
+    setupAuthRequest();
+    const response = await axios.get(`${API_URL}/tickets/purchased`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la création rapide du client" };
+    throw error.response?.data || error;
   }
 };
 
-// Exporter la liste des clients au format CSV
-export const exportClientList = async () => {
+export const getTicketsForSale = async () => {
   try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/clients/export`, {
-      responseType: 'blob'
-    });
-    
-    // Créer un lien pour télécharger le fichier
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'liste-clients-can2025.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    return { success: true };
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de l'exportation de la liste des clients" };
-  }
-};
-
-// Obtenir les meilleurs clients (par nombre de tickets achetés)
-export const getTopClients = async (limit = 10) => {
-  try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/clients/top?limit=${limit}`);
+    setupAuthRequest();
+    const response = await axios.get(`${API_URL}/tickets/selling`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération des meilleurs clients" };
+    throw error.response?.data || error;
   }
-};
-
-// Mettre à jour les informations d'un client
-export const updateClient = async (clientId, clientData) => {
-  try {
-    setupAuthHeader();
-    const response = await axios.put(`${API_URL}/admin/clients/${clientId}`, clientData);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la mise à jour du client" };
-  }
-};
-
-// Bloquer/débloquer un client
-export const toggleClientStatus = async (clientId, isBlocked) => {
-  try {
-    setupAuthHeader();
-    const response = await axios.put(`${API_URL}/admin/clients/${clientId}/status`, { 
-      estBloque: isBlocked 
-    });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors du changement de statut du client" };
-  }
-};
-
-// Envoyer un email à un client
-export const sendEmailToClient = async (clientId, emailData) => {
-  try {
-    setupAuthHeader();
-    const response = await axios.post(`${API_URL}/admin/clients/${clientId}/email`, emailData);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de l'envoi de l'email au client" };
-  }
-};
-
-// Obtenir l'historique des achats d'un client
-export const getClientPurchaseHistory = async (clientId) => {
-  try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/clients/${clientId}/purchases`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la récupération de l'historique des achats" };
-  }
-};
-
-// Vérifier si un email de client existe déjà (pour éviter les doublons)
-export const checkClientEmailExists = async (email) => {
-  try {
-    setupAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/clients/check-email?email=${encodeURIComponent(email)}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de la vérification de l'email" };
-  }
-};
-
-export default {
-  getAllClients,
-  getClientById,
-  searchClients,
-  getClientStats,
-  addQuickClient,
-  exportClientList,
-  getTopClients,
-  updateClient,
-  toggleClientStatus,
-  sendEmailToClient,
-  getClientPurchaseHistory,
-  checkClientEmailExists
 };
