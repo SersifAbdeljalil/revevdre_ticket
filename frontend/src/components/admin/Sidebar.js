@@ -9,7 +9,7 @@ import {
   FaChartBar, 
   FaCog, 
   FaSignOutAlt,
-  FaFootballBall,
+  FaFutbol,
   FaHome,
   FaMoneyBillWave,
   FaBell,
@@ -54,7 +54,7 @@ const Sidebar = () => {
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <div className="logo-icon">
-            <FaFootballBall />
+            <FaFutbol />
           </div>
           <h2>CAN 2025</h2>
         </div>

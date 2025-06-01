@@ -18,12 +18,15 @@ import {
   FaSortAmountDown,
   FaFilter,
   FaPlus,
-  FaCheckCircle // Ajout de FaCheckCircle ici
+  FaCheckCircle
 } from 'react-icons/fa';
 import { getMyPurchasedTickets, getMyTicketsForSale, deleteTicket } from '../../../api/ticketAPI';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
 import '../../admin/AdminDashboard.css';
+import { jsPDF } from 'jspdf'; // Importer jsPDF
+import QRCode from 'qrcode'; // Importer qrcode
+import JsBarcode from 'jsbarcode'; // Importer jsbarcode
 
 const MyTickets = () => {
   const [activeTab, setActiveTab] = useState('purchased');
@@ -154,8 +157,125 @@ const MyTickets = () => {
     }
   };
 
-  const handleDownloadTicket = (ticketId) => {
-    alert('Fonctionnalité de téléchargement en cours de développement');
+  const handleDownloadTicket = async (ticketId) => {
+    // Trouver le ticket correspondant dans purchasedTickets
+    const ticket = purchasedTickets.find(t => t.id === ticketId);
+    if (!ticket) {
+      setError('Ticket non trouvé pour le téléchargement');
+      return;
+    }
+
+    try {
+      // Créer un nouveau document PDF avec jsPDF
+      const doc = new jsPDF();
+
+      // Définir les couleurs et styles globaux
+      const accentColor = [0, 178, 143]; // var(--accent) en RGB
+      const darkColor = [34, 34, 34]; // var(--dark) en RGB
+      const greyColor = [100, 100, 100]; // Gris pour les textes secondaires
+
+      // Générer le QR Code
+      const qrCodeData = `Ticket ID: ${ticket.id}`; // Données à encoder dans le QR Code
+      const qrCodeDataUrl = await QRCode.toDataURL(qrCodeData, {
+        width: 80,
+        margin: 1,
+      });
+
+      // Générer le code-barres
+      const canvas = document.createElement('canvas');
+      JsBarcode(canvas, ticket.id.toString(), {
+        format: 'CODE128',
+        width: 2,
+        height: 40,
+        displayValue: true,
+        fontSize: 12,
+        margin: 5,
+      });
+      const barcodeDataUrl = canvas.toDataURL('image/png');
+
+      // En-tête
+      doc.setFillColor(...accentColor);
+      doc.rect(0, 0, 210, 40, 'F'); // Bandeau vert en haut
+      doc.setFontSize(22);
+      doc.setTextColor(255, 255, 255); // Blanc pour le texte sur fond vert
+      doc.setFont('helvetica', 'bold');
+      doc.text('Ticket Officiel - CAN 2025', 105, 20, { align: 'center' });
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Votre billet pour une expérience inoubliable', 105, 30, { align: 'center' });
+
+      // Cadre principal pour les informations
+      doc.setDrawColor(...accentColor);
+      doc.setLineWidth(1);
+      doc.rect(10, 50, 190, 200); // Cadre autour des informations
+
+      // Titre du match
+      doc.setFontSize(16);
+      doc.setTextColor(...darkColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${ticket.match.equipe1} vs ${ticket.match.equipe2}`, 20, 65);
+
+      // Ligne de séparation
+      doc.setDrawColor(...greyColor);
+      doc.setLineWidth(0.5);
+      doc.line(20, 70, 190, 70);
+
+      // Détails du ticket
+      doc.setFontSize(12);
+      doc.setTextColor(...darkColor);
+      doc.setFont('helvetica', 'normal');
+
+      // Informations sous forme de liste
+      doc.text(`Lieu: ${ticket.match.lieu}`, 20, 85);
+      doc.text(`Date: ${formatDate(ticket.match.date)}`, 20, 95);
+      doc.text(`Prix: ${formatCurrency(ticket.prix)}`, 20, 105);
+      doc.text(`Vendeur: ${ticket.vendeur?.nom || 'Non spécifié'}`, 20, 115);
+      doc.text(`Date d'achat: ${formatDate(ticket.dateAchat)}`, 20, 125);
+      doc.text(`ID du ticket: ${ticket.id}`, 20, 135);
+
+      // Ajouter le QR Code
+      doc.setFontSize(10);
+      doc.setTextColor(...darkColor);
+      doc.text('Scan pour vérifier', 150, 85);
+      doc.addImage(qrCodeDataUrl, 'PNG', 150, 90, 30, 30);
+
+      // Ajouter le code-barres
+      doc.text('Code-barres', 20, 155);
+      doc.addImage(barcodeDataUrl, 'PNG', 20, 160, 80, 20);
+
+      // Section "Instructions"
+      doc.setFontSize(14);
+      doc.setTextColor(...darkColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Instructions', 20, 195);
+      doc.setLineWidth(0.5);
+      doc.line(20, 200, 190, 200);
+
+      doc.setFontSize(11);
+      doc.setTextColor(...greyColor);
+      doc.setFont('helvetica', 'normal');
+      doc.text('• Veuillez arriver 30 minutes avant le début du match.', 20, 210);
+      doc.text('• Présentez ce ticket à l’entrée du stade.', 20, 220);
+      doc.text('• Ce ticket est non remboursable.', 20, 230);
+
+      // Pied de page
+      doc.setFillColor(...accentColor);
+      doc.rect(0, 257, 210, 40, 'F'); // Bandeau vert en bas
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'italic');
+      doc.text('Merci pour votre achat ! Profitez du match !', 105, 270, { align: 'center' });
+      doc.text('CAN 2025 - Tous droits réservés', 105, 280, { align: 'center' });
+
+      // Générer un nom de fichier unique
+      const fileName = `ticket_${ticket.match.equipe1}_vs_${ticket.match.equipe2}_${ticket.id}.pdf`;
+
+      // Télécharger le PDF
+      doc.save(fileName);
+    } catch (err) {
+      setError('Erreur lors de la génération du PDF');
+      console.error('Erreur lors du téléchargement du ticket:', err);
+    }
   };
 
   const handleCreateTicket = () => {
@@ -360,7 +480,7 @@ const MyTickets = () => {
                             onClick={() => handleDownloadTicket(ticket.id)}
                             style={{ flex: '1' }}
                           >
-                            <FaDownload /> Télécharger 
+                            <FaDownload /> Télécharger
                           </button>
                         </div>
                       </div>
@@ -392,7 +512,6 @@ const MyTickets = () => {
 
           <div className={`tab-content ${activeTab === 'selling' ? 'active' : ''}`}>
             <div className="dashboard-section">
-              {/* Nouvelle section d'en-tête stylisée comme dans MatchesList.js */}
               <div className="feature-header">
                 <div className="feature-header-content">
                   <h1 className="feature-title">Gestion des tickets CAN 2025</h1>

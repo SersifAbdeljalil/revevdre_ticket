@@ -2457,3 +2457,97 @@ input:checked + .slider:before {
 .btn-secondary:hover {
   background-color: darken(#6c757d, 10%);
 }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ticket-card:hover, .payment-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
+.btn {
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+/* Profile-specific styles */
+.profile-section .profile-card {
+  background: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+}
+
+.profile-section .profile-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+}
+
+.profile-section .card-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.profile-section .card-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-section .card-status {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: var(--success);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.profile-section .card-status[data-status="blocked"] {
+  background-color: var(--error);
+}
+
+.profile-section .info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.profile-section .info-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-section .info-label {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.profile-section .info-value {
+  font-weight: 500;
+}
+
+.profile-section .form-control {
+  padding: 10px;
+  font-size: 0.95rem;
+}

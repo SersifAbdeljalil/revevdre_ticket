@@ -1,4 +1,4 @@
-// src/components/client/Sidebar.js
+
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
@@ -6,7 +6,7 @@ import {
   FaTicketAlt, 
   FaUser, 
   FaSignOutAlt,
-  FaFootballBall,
+  FaFutbol, // Remplacement de FaFootballBall par FaFutbol
   FaHome,
   FaCalendarAlt,
   FaListAlt
@@ -27,7 +27,7 @@ const Sidebar = () => {
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <div className="logo-icon">
-            <FaFootballBall />
+            <FaFutbol /> {/* Icône modifiée */}
           </div>
           <h2>CAN 2025</h2>
         </div>
@@ -36,16 +36,10 @@ const Sidebar = () => {
       <div className="sidebar-menu">
         <div className="menu-section">
           <div className="menu-section-title">PRINCIPAL</div>
-          <NavLink to="/dashboard" end className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}>
-            <span className="menu-icon"><FaTachometerAlt /></span>
-            Tableau de bord
-          </NavLink>
-
           <NavLink to="/matches" className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}>
             <span className="menu-icon"><FaCalendarAlt /></span>
             Matchs
           </NavLink>
-
           <NavLink to="/" className="menu-item">
             <span className="menu-icon"><FaHome /></span>
             Site principal
@@ -58,12 +52,10 @@ const Sidebar = () => {
             <span className="menu-icon"><FaTicketAlt /></span>
             Mes tickets
           </NavLink>
-
           <NavLink to="/tickets/list" className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}>
             <span className="menu-icon"><FaListAlt /></span>
             Tickets disponibles
           </NavLink>
-
           <NavLink to="/profile" className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}>
             <span className="menu-icon"><FaUser /></span>
             Mon profil
