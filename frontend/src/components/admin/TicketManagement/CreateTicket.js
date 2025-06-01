@@ -215,7 +215,7 @@ const CreateTicket = () => {
                     <div className="form-group">
                       <label htmlFor="prix">
                         <FaMoneyBillWave style={{ marginRight: '8px' }} />
-                        Prix du ticket (FCFA)
+                        Prix du ticket (DH)
                       </label>
                       <input
                         type="number"
@@ -309,7 +309,7 @@ const CreateTicket = () => {
                             <div>
                               {new Intl.NumberFormat('fr-FR', {
                                 style: 'currency',
-                                currency: 'XOF',
+                                currency: 'MAD',
                                 minimumFractionDigits: 0
                               }).format(formData.prix)}
                             </div>

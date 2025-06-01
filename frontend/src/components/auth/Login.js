@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginAPI } from '../../api/authAPI';
-import { FaGoogle, FaFacebookF, FaTwitter, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaGoogle, FaFacebookF, FaTwitter, FaEye, FaEyeSlash, FaExclamationTriangle } from 'react-icons/fa';
 import './Auth.css';
 
 const Login = () => {
@@ -12,7 +12,7 @@ const Login = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // Ajout pour afficher/masquer le mot de passe
+  const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
 
@@ -32,32 +32,38 @@ const Login = () => {
     setError('');
 
     try {
+      console.log('Tentative de connexion avec:', { email }); // Débogage
       const response = await loginAPI(email, motDePasse);
-      localStorage.setItem('token', response.token); // Stocker le token JWT
+      console.log('Réponse loginAPI dans Login.js:', response); // Débogage
 
       // Rediriger selon le rôle de l'utilisateur
-      if (response && response.user && response.user.role === 'administrateur') {
-        navigate('/admin'); // Rediriger vers le dashboard administrateur
+      if (response.user && response.user.role === 'administrateur') {
+        console.log('Redirection vers /admin'); // Débogage
+        navigate('/admin');
       } else {
-        navigate('/matches'); // Rediriger les clients vers la page des matchs
+        console.log('Redirection vers /matches'); // Débogage
+        navigate('/matches');
       }
     } catch (err) {
+      console.error('Erreur de connexion:', err);
       setError(err.message || 'Une erreur est survenue lors de la connexion');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fonctions pour l'authentification sociale
   const handleGoogleAuth = () => {
+    console.log('Authentification Google'); // Débogage
     window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/google`;
   };
 
   const handleFacebookAuth = () => {
+    console.log('Authentification Facebook'); // Débogage
     window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/facebook`;
   };
 
   const handleTwitterAuth = () => {
+    console.log('Authentification Twitter'); // Débogage
     window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/twitter`;
   };
 
@@ -67,7 +73,11 @@ const Login = () => {
         <h2>Connexion</h2>
         <h3>Revente Tickets CAN 2025</h3>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className="error-message">
+            <FaExclamationTriangle /> {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">

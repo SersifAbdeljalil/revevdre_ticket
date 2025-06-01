@@ -5,9 +5,11 @@ const cors = require('cors');
 const { pool } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const clientRoutes = require('./routes/clientRoutes'); // Ajout des routes client
+const clientRoutes = require('./routes/clientRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const matchRoutes = require('./routes/matchRoutes');
+const passwordResetRoutes = require('./routes/passwordReset'); // Ajout des routes passwordReset
 const { protect } = require('./middleware/authMiddleware');
 
 // Initialisation de l'application Express
@@ -47,14 +49,14 @@ const testDbConnection = async () => {
 // Définition des routes API
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/client', clientRoutes); // Ajout des routes client
-// Route de tickets avec logging
+app.use('/api/client', clientRoutes);
+app.use('/api', matchRoutes);
 app.use('/api/tickets', (req, res, next) => {
   console.log('Route /api/tickets interceptée');
   next();
 }, ticketRoutes);
-// Route de notifications
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/password-reset', passwordResetRoutes); // Ajout des routes de réinitialisation
 
 // Routes utilitaires
 app.get('/api/version', (req, res) => {

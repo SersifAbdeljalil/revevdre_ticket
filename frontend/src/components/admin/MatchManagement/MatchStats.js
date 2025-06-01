@@ -22,7 +22,7 @@ const MatchStats = ({ matchData, onClose }) => {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
-      currency: 'XOF',
+      currency: 'MAD',
       minimumFractionDigits: 0
     }).format(amount);
   };

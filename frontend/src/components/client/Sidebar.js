@@ -8,7 +8,8 @@ import {
   FaSignOutAlt,
   FaFootballBall,
   FaHome,
-  FaCalendarAlt
+  FaCalendarAlt,
+  FaListAlt
 } from 'react-icons/fa';
 import { logoutAPI } from '../../api/authAPI';
 import '../admin/AdminDashboard.css'; // Réutilisation du même CSS pour la cohérence
@@ -56,6 +57,11 @@ const Sidebar = () => {
           <NavLink to="/tickets" className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}>
             <span className="menu-icon"><FaTicketAlt /></span>
             Mes tickets
+          </NavLink>
+
+          <NavLink to="/tickets/list" className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}>
+            <span className="menu-icon"><FaListAlt /></span>
+            Tickets disponibles
           </NavLink>
 
           <NavLink to="/profile" className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}>

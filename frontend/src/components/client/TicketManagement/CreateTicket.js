@@ -12,8 +12,8 @@ import {
 } from 'react-icons/fa';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
-import { createTicketForSale } from '../../../api/clientAPI';
-import { getAllMatches } from '../../../api/clientAPI';
+import { createTicketForSale } from '../../../api/ticketAPI';
+import { getAllMatches } from '../../../api/matchAPI';
 import '../../admin/AdminDashboard.css';
 
 const CreateTicket = () => {
@@ -33,15 +33,20 @@ const CreateTicket = () => {
     const loadMatches = async () => {
       try {
         setLoading(true);
-        const data = await getAllMatches();
-        const upcomingMatches = data.matches.filter(match =>
+        const response = await getAllMatches();
+        console.log('Réponse de getAllMatches:', response);
+        if (!response || !response.matches) {
+          throw new Error('Aucun match disponible');
+        }
+        const upcomingMatches = response.matches.filter(match =>
           new Date(match.date) > new Date()
         );
+        console.log('Matchs à venir:', upcomingMatches);
         setMatches(upcomingMatches);
         setError('');
       } catch (err) {
-        setError('Erreur lors du chargement des matchs');
-        console.error(err);
+        console.error('Erreur détaillée:', err);
+        setError(err.message || 'Erreur lors du chargement des matchs');
       } finally {
         setLoading(false);
       }
@@ -65,7 +70,7 @@ const CreateTicket = () => {
 
     const prix = parseFloat(formData.prix);
     if (isNaN(prix) || prix <= 0) {
-      setError('Veuillez entrer un prix valide');
+      setError('Veuillez entrer un prix valide (supérieur à 0 DH)');
       return;
     }
 
@@ -73,10 +78,11 @@ const CreateTicket = () => {
       setSubmitting(true);
       setError('');
 
-      await createTicketForSale({
+      const response = await createTicketForSale({
         matchId: parseInt(formData.matchId),
         prix: prix
       });
+      console.log('Réponse de createTicketForSale:', response);
 
       setSuccess(true);
       setFormData({
@@ -88,8 +94,8 @@ const CreateTicket = () => {
         navigate('/tickets');
       }, 2000);
     } catch (err) {
+      console.error('Erreur lors de la mise en vente:', err);
       setError(err.message || 'Erreur lors de la mise en vente du ticket');
-      console.error(err);
     } finally {
       setSubmitting(false);
     }
@@ -100,14 +106,26 @@ const CreateTicket = () => {
   };
 
   const formatDate = (dateString) => {
-    const options = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-    return new Date(dateString).toLocaleDateString('fr-FR', options);
+    try {
+      const options = {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      };
+      return new Date(dateString).toLocaleDateString('fr-FR', options);
+    } catch (err) {
+      return 'Date invalide';
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'MAD',
+      minimumFractionDigits: 0
+    }).format(amount);
   };
 
   const LoadingSpinner = () => (
@@ -123,9 +141,9 @@ const CreateTicket = () => {
   );
 
   return (
-    <div className="client-layout">
+    <div className="admin-layout">
       <Sidebar />
-      <div className="client-main">
+      <div className="admin-main">
         <Header title="Mettre un ticket en vente" />
 
         <div className="dashboard-content">
@@ -140,7 +158,7 @@ const CreateTicket = () => {
           <div className="dashboard-section">
             <h2 style={{ color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <FaTicketAlt />
-              Mettre un ticket en vente
+              Créer un nouveau ticket
             </h2>
 
             {success ? (
@@ -155,32 +173,28 @@ const CreateTicket = () => {
                 gap: '15px',
                 animation: 'fadeInUp 0.5s ease-out'
               }}>
-                <div style={{
-                  backgroundColor: 'var(--success)',
-                  color: 'white',
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.2rem'
-                }}>
-                  <FaCheckCircle />
-                </div>
+                <FaCheckCircle style={{ fontSize: '1.5rem' }} />
                 <div>
                   <div style={{ fontWeight: '600', fontSize: '1.1rem', marginBottom: '5px' }}>
                     Ticket mis en vente avec succès !
                   </div>
                   <p style={{ margin: '0', fontSize: '0.95rem' }}>
-                    Vous allez être redirigé vers la liste de vos tickets...
+                    Redirection vers vos tickets dans quelques secondes...
                   </p>
                 </div>
               </div>
             ) : (
               <>
                 {error && (
-                  <div className="error-alert">
+                  <div className="error-alert" style={{
+                    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                    color: 'var(--error)',
+                    padding: '15px',
+                    borderRadius: 'var(--border-radius)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
                     <FaExclamationTriangle />
                     {error}
                   </div>
@@ -215,7 +229,7 @@ const CreateTicket = () => {
                     <div className="form-group">
                       <label htmlFor="prix">
                         <FaMoneyBillWave style={{ marginRight: '8px' }} />
-                        Prix du ticket (FCFA)
+                        Prix du ticket (DH)
                       </label>
                       <input
                         type="number"
@@ -224,12 +238,13 @@ const CreateTicket = () => {
                         className={`form-control ${!formData.prix && 'is-invalid'}`}
                         value={formData.prix}
                         onChange={handleChange}
-                        placeholder="Ex: 25000"
+                        placeholder="Ex: 250"
                         min="1"
+                        step="1"
                         required
                       />
                       <div className="form-text">
-                        Indiquez le prix auquel vous souhaitez vendre votre ticket.
+                        Indiquez le prix auquel vous souhaitez vendre votre ticket (en DH).
                       </div>
                     </div>
 
@@ -252,7 +267,6 @@ const CreateTicket = () => {
                           <FaTags />
                           Aperçu du ticket
                         </h3>
-
                         <div style={{
                           display: 'flex',
                           flexDirection: 'column',
@@ -270,7 +284,6 @@ const CreateTicket = () => {
                               {matches.find(m => m.id === parseInt(formData.matchId))?.equipe1} vs {matches.find(m => m.id === parseInt(formData.matchId))?.equipe2}
                             </div>
                           </div>
-
                           <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -283,7 +296,6 @@ const CreateTicket = () => {
                               {formatDate(matches.find(m => m.id === parseInt(formData.matchId))?.date)}
                             </div>
                           </div>
-
                           <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -296,7 +308,6 @@ const CreateTicket = () => {
                               {matches.find(m => m.id === parseInt(formData.matchId))?.lieu}
                             </div>
                           </div>
-
                           <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -306,13 +317,7 @@ const CreateTicket = () => {
                             fontSize: '1.1rem'
                           }}>
                             <div>Prix de vente</div>
-                            <div>
-                              {new Intl.NumberFormat('fr-FR', {
-                                style: 'currency',
-                                currency: 'XOF',
-                                minimumFractionDigits: 0
-                              }).format(formData.prix)}
-                            </div>
+                            <div>{formatCurrency(formData.prix)}</div>
                           </div>
                         </div>
                       </div>

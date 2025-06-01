@@ -1,8 +1,8 @@
-// src/components/admin/TicketManagement/TicketDetail.js
+// src/components/client/TicketManagement/TicketDetail.js
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  FaTicketAlt, 
+import {
+  FaTicketAlt,
   FaCalendarAlt,
   FaMapMarkerAlt,
   FaUserAlt,
@@ -13,6 +13,7 @@ import {
 import Sidebar from '../Sidebar';
 import Header from '../Header';
 import { getTicketDetails } from '../../../api/ticketAPI';
+import '../../admin/AdminDashboard.css';
 
 const TicketDetail = () => {
   const { id } = useParams();
@@ -21,86 +22,57 @@ const TicketDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Charger les détails du ticket
-  const loadTicketDetails = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      const response = await getTicketDetails(id);
-      
-      if (!response || !response.ticket) {
-        throw new Error('Les détails du ticket sont introuvables');
-      }
-      
-      setTicket(response.ticket);
-    } catch (err) {
-      console.error('Erreur lors du chargement des détails du ticket:', err);
-      setError(err.message || 'Erreur lors du chargement des détails du ticket');
-      
-      // Données mockées pour le développement
-      const mockTicket = {
-        id: parseInt(id),
-        prix: 15000,
-        estVendu: false,
-        match: {
-          id: 1,
-          equipe1: 'PSG',
-          equipe2: 'Real Madrid',
-          lieu: 'Parc des Princes',
-          date: '2025-05-20T20:00:00'
-        },
-        vendeur: {
-          id: 1,
-          nom: 'Jean Dupont',
-          email: 'jean.dupont@example.com'
-        }
-      };
-      
-      setTicket(mockTicket);
-      setError(`Données de démonstration (${err.message})`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Chargement initial
   useEffect(() => {
+    const loadTicketDetails = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        const response = await getTicketDetails(id);
+
+        if (!response || !response.ticket) {
+          throw new Error('Les détails du ticket sont introuvables');
+        }
+
+        setTicket(response.ticket);
+      } catch (err) {
+        console.error('Erreur lors du chargement des détails du ticket:', err);
+        setError(err.message || 'Erreur lors du chargement des détails du ticket');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadTicketDetails();
   }, [id]);
 
-  // Formater le montant en FCFA
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
-      currency: 'XOF',
+      currency: 'MAD',
       minimumFractionDigits: 0
     }).format(amount);
   };
-  
-  // Formater la date
+
   const formatDate = (dateString) => {
     try {
-      const options = { 
-        year: 'numeric', 
-        month: 'long', 
+      const options = {
+        year: 'numeric',
+        month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
       };
       return new Date(dateString).toLocaleDateString('fr-FR', options);
     } catch (err) {
-      console.error('Erreur de formatage de date:', err);
-      return dateString || 'Date inconnue';
+      return 'Date invalide';
     }
   };
 
-  // Retourner à la liste des tickets
   const handleBack = () => {
-    navigate('/admin/tickets');
+    navigate('/tickets');
   };
 
-  // Composant pour le spinner de chargement
   const LoadingSpinner = () => (
     <div className="loading">
       <div className="loading-spinner"></div>
@@ -118,10 +90,8 @@ const TicketDetail = () => {
       <Sidebar />
       <div className="admin-main">
         <Header title="Détails du Ticket" />
-        
+
         <div className="dashboard-content">
-          {/* Suppression du bouton "Retour à la liste" en haut */}
-          
           {error && (
             <div className="error-alert" style={{
               padding: '15px',
@@ -141,7 +111,7 @@ const TicketDetail = () => {
               </div>
             </div>
           )}
-          
+
           {loading ? (
             <LoadingSpinner />
           ) : ticket ? (
@@ -153,17 +123,17 @@ const TicketDetail = () => {
                 boxShadow: 'var(--shadow-md)',
                 border: ticket.estVendu ? '2px solid var(--error)' : '2px solid var(--success)'
               }}>
-                <div className="ticket-header" style={{ 
+                <div className="ticket-header" style={{
                   background: ticket.estVendu ? 'linear-gradient(135deg, #ff3d57 0%, #ff5f7e 100%)' : 'var(--accent-gradient)',
                   color: 'white',
                   padding: '25px 30px',
                   borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
                   position: 'relative'
                 }}>
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: '15px', 
-                    right: '15px', 
+                  <div style={{
+                    position: 'absolute',
+                    top: '15px',
+                    right: '15px',
                     backgroundColor: ticket.estVendu ? 'var(--error)' : 'var(--success)',
                     color: 'white',
                     fontSize: '0.85rem',
@@ -173,9 +143,9 @@ const TicketDetail = () => {
                   }}>
                     {ticket.estVendu ? 'Vendu' : 'Disponible'}
                   </div>
-                  
-                  <div style={{ 
-                    fontSize: '2rem', 
+
+                  <div style={{
+                    fontSize: '2rem',
                     fontWeight: '700',
                     marginBottom: '10px',
                     display: 'flex',
@@ -187,10 +157,10 @@ const TicketDetail = () => {
                       {ticket.match.equipe1} vs {ticket.match.equipe2}
                     </span>
                   </div>
-                  
-                  <div style={{ 
-                    fontSize: '1.2rem', 
-                    display: 'flex', 
+
+                  <div style={{
+                    fontSize: '1.2rem',
+                    display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
                     opacity: '0.9'
@@ -199,18 +169,18 @@ const TicketDetail = () => {
                     {formatDate(ticket.match.date)}
                   </div>
                 </div>
-                
+
                 <div className="ticket-body" style={{ padding: '30px' }}>
-                  <div className="ticket-info-list" style={{ 
-                    display: 'grid', 
+                  <div className="ticket-info-list" style={{
+                    display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
                     gap: '25px',
                     marginBottom: '30px'
                   }}>
                     <div className="ticket-info-item" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <div style={{ 
-                        width: '50px', 
-                        height: '50px', 
+                      <div style={{
+                        width: '50px',
+                        height: '50px',
                         borderRadius: '50%',
                         backgroundColor: 'rgba(255, 107, 1, 0.1)',
                         display: 'flex',
@@ -226,11 +196,11 @@ const TicketDetail = () => {
                         <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>{ticket.match.lieu}</div>
                       </div>
                     </div>
-                    
+
                     <div className="ticket-info-item" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <div style={{ 
-                        width: '50px', 
-                        height: '50px', 
+                      <div style={{
+                        width: '50px',
+                        height: '50px',
                         borderRadius: '50%',
                         backgroundColor: 'rgba(255, 192, 0, 0.1)',
                         display: 'flex',
@@ -243,20 +213,20 @@ const TicketDetail = () => {
                       </div>
                       <div>
                         <div style={{ fontSize: '0.9rem', color: '#888', marginBottom: '3px' }}>Prix du ticket</div>
-                        <div style={{ 
-                          fontWeight: '700', 
-                          fontSize: '1.5rem', 
+                        <div style={{
+                          fontWeight: '700',
+                          fontSize: '1.5rem',
                           color: 'var(--primary)'
                         }}>
                           {formatCurrency(ticket.prix)}
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="ticket-info-item" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <div style={{ 
-                        width: '50px', 
-                        height: '50px', 
+                      <div style={{
+                        width: '50px',
+                        height: '50px',
                         borderRadius: '50%',
                         backgroundColor: 'rgba(107, 72, 255, 0.1)',
                         display: 'flex',
@@ -274,18 +244,17 @@ const TicketDetail = () => {
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Remplacer les deux boutons par un seul bouton "Retour à la liste" avec le même style */}
+
                   <div className="ticket-actions" style={{
                     display: 'flex',
                     justifyContent: 'center',
                     marginTop: '20px'
                   }}>
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
+                    <button
+                      className="btn btn-primary"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
                         gap: '8px',
                         padding: '10px 25px',
                         fontSize: '1rem',
@@ -303,13 +272,13 @@ const TicketDetail = () => {
             <div className="no-data">
               <div className="no-data-icon"><FaTicketAlt /></div>
               <p>Ticket non trouvé</p>
-              <button 
-                className="btn btn-primary" 
+              <button
+                className="btn btn-primary"
                 onClick={handleBack}
-                style={{ 
-                  marginTop: '15px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                style={{
+                  marginTop: '15px',
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '8px',
                   padding: '10px 25px',
                   fontSize: '1rem',

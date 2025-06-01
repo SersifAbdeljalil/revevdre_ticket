@@ -3,12 +3,10 @@ import axios from 'axios';
 
 // Configuration de l'URL de base de l'API
 const API_URL = 'http://localhost:5000/api';
-
-// Correction du chemin pour correspondre au backend
-const TICKETS_ENDPOINT = '/tickets'; // Au lieu de '/admin/tickets'
+const TICKETS_ENDPOINT = '/tickets';
 
 // Configurer axios pour envoyer le token dans les headers
-const setAuthToken = () => {
+export const setAuthToken = () => {
   try {
     const userStr = localStorage.getItem('user');
     if (!userStr) {
@@ -34,9 +32,8 @@ const setAuthToken = () => {
 // Vérifier si l'API est disponible
 export const checkApiHealth = async () => {
   try {
-    // Utiliser la route de version qui existe déjà dans votre serveur
     const response = await axios.get(`${API_URL}/version`, { 
-      timeout: 5000 // 5 secondes max
+      timeout: 5000
     });
     
     return { 
@@ -58,25 +55,21 @@ export const getAllTickets = async (filters = {}) => {
   try {
     console.log('Tentative de récupération des tickets avec filtres:', filters);
     
-    // Vérifier la santé de l'API d'abord (optionnel)
     const healthCheck = await checkApiHealth();
     if (!healthCheck.available) {
       console.error('API inaccessible lors du health check:', healthCheck.error);
       throw new Error(`API inaccessible: ${healthCheck.error}`);
     }
     
-    // Configurer le token d'authentification
     const hasToken = setAuthToken();
     console.log('Token d\'authentification défini:', hasToken);
     
-    // URL complète avec le bon chemin pour les tickets
     const fullUrl = `${API_URL}${TICKETS_ENDPOINT}`;
     console.log('URL complète de l\'appel API:', fullUrl);
     
-    // Tentative avec timeout prolongé
     const response = await axios.get(fullUrl, { 
       params: filters,
-      timeout: 10000, // 10 secondes
+      timeout: 10000,
       headers: {
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
@@ -87,39 +80,31 @@ export const getAllTickets = async (filters = {}) => {
     console.log('Status de la réponse:', response.status);
     console.log('Données brutes reçues:', response.data);
     
-    // Normaliser la réponse selon différents formats possibles
     let tickets;
-    
     if (Array.isArray(response.data)) {
       tickets = response.data;
     } else if (response.data.tickets && Array.isArray(response.data.tickets)) {
       tickets = response.data.tickets;
     } else if (typeof response.data === 'object') {
-      // Chercher un tableau dans l'objet
       const possibleTicketArrays = Object.values(response.data)
         .filter(val => Array.isArray(val));
         
       if (possibleTicketArrays.length > 0) {
         tickets = possibleTicketArrays[0];
       } else {
-        // Si aucun tableau n'est trouvé, considérer que c'est un objet unique
         tickets = [response.data];
       }
     } else {
       throw new Error('Format de réponse non reconnu');
     }
     
-    // Appliquer la transformation pour chaque ticket
     const formattedTickets = tickets.map(ticket => adaptTicketForFrontend(ticket));
-    
     console.log('Tickets normalisés:', formattedTickets);
     
-    // Validation des données reçues
     if (formattedTickets.length > 0) {
       const requiredProps = ['id', 'prix'];
       const missingProps = [];
       
-      // Vérifier les propriétés essentielles sur le premier ticket
       for (const prop of requiredProps) {
         if (formattedTickets[0][prop] === undefined) {
           missingProps.push(prop);
@@ -133,15 +118,12 @@ export const getAllTickets = async (filters = {}) => {
     
     return { tickets: formattedTickets };
   } catch (error) {
-    // Gestion d'erreur détaillée
     console.error('Erreur lors de la récupération des tickets:', error);
     
-    // Construire un message d'erreur significatif
     let errorMessage = "Erreur lors de la récupération des tickets";
     let errorDetails = {};
     
     if (error.response) {
-      // Erreur de réponse HTTP
       errorMessage = `Erreur ${error.response.status} du serveur`;
       errorDetails = {
         status: error.response.status,
@@ -150,19 +132,16 @@ export const getAllTickets = async (filters = {}) => {
         headers: error.response.headers
       };
     } else if (error.request) {
-      // Pas de réponse reçue
       errorMessage = "Le serveur n'a pas répondu à la requête";
       errorDetails = {
-        request: error.request._currentUrl || error.request.responseURL || `${API_URL}${TICKETS_ENDPOINT}`,
+        request: error.request?.responseURL || `${API_URL}${TICKETS_ENDPOINT}`,
         method: error.config?.method || 'GET',
         timeout: error.config?.timeout || 'inconnu'
       };
     } else {
-      // Erreur lors de la configuration de la requête
       errorMessage = error.message || "Erreur inconnue";
     }
     
-    // Lancer une erreur avec un format standardisé
     throw {
       message: errorMessage,
       details: errorDetails,
@@ -184,7 +163,7 @@ export const getTicketDetails = async (ticketId) => {
   }
 };
 
-// Mettre un ticket en vente (pour l'utilisateur connecté)
+// Mettre un ticket en vente
 export const createTicketForSale = async (ticketData) => {
   try {
     if (!setAuthToken()) {
@@ -201,20 +180,113 @@ export const createTicketForSale = async (ticketData) => {
   }
 };
 
-// Acheter un ticket
+// Acheter un ticket (enhanced)
 export const buyTicket = async (ticketId, paymentData) => {
   try {
     if (!setAuthToken()) {
-      throw { message: "Vous devez être connecté pour acheter un ticket" };
+      throw new Error("Vous devez être connecté pour acheter un ticket");
     }
-    const response = await axios.post(`${API_URL}${TICKETS_ENDPOINT}/${ticketId}/purchase`, paymentData);
-    return response.data;
+
+    // Validate paymentData
+    if (!paymentData || !paymentData.methode) {
+      throw new Error("La méthode de paiement est requise");
+    }
+
+    const validPaymentMethods = ['carte', 'mobile'];
+    if (!validPaymentMethods.includes(paymentData.methode)) {
+      throw new Error(`Méthode de paiement non valide. Doit être l'une de: ${validPaymentMethods.join(', ')}`);
+    }
+
+    // Optional: Validate additional payment details if provided
+    if (paymentData.methode === 'carte' && paymentData.cardNumber) {
+      if (!/^\d{16}$/.test(paymentData.cardNumber)) {
+        throw new Error("Numéro de carte invalide (16 chiffres requis)");
+      }
+    } else if (paymentData.methode === 'mobile' && paymentData.phoneNumber) {
+      if (!/^\d{10}$/.test(paymentData.phoneNumber)) {
+        throw new Error("Numéro de téléphone invalide (10 chiffres requis)");
+      }
+    }
+
+    console.log(`Tentative d'achat du ticket ${ticketId} avec méthode ${paymentData.methode}`);
+
+    const response = await axios.post(
+      `${API_URL}${TICKETS_ENDPOINT}/${ticketId}/purchase`,
+      paymentData,
+      {
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log('Achat réussi:', response.data);
+
+    return {
+      success: true,
+      message: response.data.message || "Ticket acheté avec succès",
+      ticketId: response.data.ticketId,
+      data: response.data,
+    };
   } catch (error) {
-    throw error.response?.data || { message: "Erreur lors de l'achat du ticket" };
+    console.error('Erreur lors de l\'achat du ticket:', error);
+
+    let errorMessage = "Erreur lors de l'achat du ticket";
+    let errorDetails = {};
+
+    if (error.response) {
+      // Server responded with an error
+      errorMessage = error.response.data.message || `Erreur ${error.response.status} du serveur`;
+      errorDetails = {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+      };
+
+      // Specific error messages
+      switch (error.response.status) {
+        case 400:
+          if (error.response.data.message.includes('déjà vendu')) {
+            errorMessage = "Ce ticket a déjà été vendu.";
+          } else if (error.response.data.message.includes('propre ticket')) {
+            errorMessage = "Vous ne pouvez pas acheter votre propre ticket.";
+          } else if (error.response.data.message.includes('match a déjà eu lieu')) {
+            errorMessage = "Ce match a déjà eu lieu.";
+          }
+          break;
+        case 404:
+          errorMessage = "Ticket non trouvé.";
+          break;
+        case 401:
+          errorMessage = "Vous devez être connecté pour acheter ce ticket.";
+          break;
+        default:
+          break;
+      }
+    } else if (error.request) {
+      // No response received
+      errorMessage = "Le serveur n'a pas répondu à la requête.";
+      errorDetails = {
+        request: error.request?.responseURL || `${API_URL}${TICKETS_ENDPOINT}/${ticketId}/purchase`,
+        method: 'POST',
+        timeout: error.config?.timeout || 'inconnu',
+      };
+    } else {
+      // Error setting up the request
+      errorMessage = error.message || "Erreur inconnue";
+    }
+
+    throw {
+      error: true,
+      message: errorMessage,
+      details: errorDetails,
+      originalError: error,
+    };
   }
 };
 
-// Modifier un ticket (pour le vendeur seulement)
+// Modifier un ticket
 export const updateTicket = async (ticketId, ticketData) => {
   try {
     if (!setAuthToken()) {
@@ -228,7 +300,7 @@ export const updateTicket = async (ticketId, ticketData) => {
   }
 };
 
-// Supprimer un ticket (pour le vendeur seulement)
+// Supprimer un ticket
 export const deleteTicket = async (ticketId) => {
   try {
     if (!setAuthToken()) {
@@ -248,7 +320,6 @@ export const getMyTicketsForSale = async () => {
       throw { message: "Vous devez être connecté pour voir vos tickets" };
     }
     const response = await axios.get(`${API_URL}${TICKETS_ENDPOINT}/my-sales`);
-    // Appliquer la transformation pour chaque ticket
     const tickets = response.data.tickets.map(ticket => adaptTicketForFrontend(ticket));
     return { tickets };
   } catch (error) {
@@ -263,7 +334,6 @@ export const getMyPurchasedTickets = async () => {
       throw { message: "Vous devez être connecté pour voir vos achats" };
     }
     const response = await axios.get(`${API_URL}${TICKETS_ENDPOINT}/my-purchases`);
-    // Appliquer la transformation pour chaque ticket
     const tickets = response.data.tickets.map(ticket => adaptTicketForFrontend(ticket));
     return { tickets };
   } catch (error) {
@@ -275,7 +345,6 @@ export const getMyPurchasedTickets = async () => {
 export const adaptTicketForDatabase = (ticket) => {
   if (!ticket) return null;
   
-  // Transformer estVendu en estRevendu pour la compatibilité avec la BDD
   if ('estVendu' in ticket) {
     const { estVendu, ...restTicket } = ticket;
     return {
@@ -291,7 +360,6 @@ export const adaptTicketForDatabase = (ticket) => {
 export const adaptTicketForFrontend = (ticket) => {
   if (!ticket) return null;
   
-  // Transformer estRevendu en estVendu pour la cohérence frontend
   if ('estRevendu' in ticket) {
     const { estRevendu, ...restTicket } = ticket;
     return {
