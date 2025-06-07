@@ -1,4 +1,3 @@
-// src/components/client/TicketManagement/CreateTicket.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -8,7 +7,8 @@ import {
   FaArrowLeft,
   FaCheckCircle,
   FaExclamationTriangle,
-  FaTags
+  FaTags,
+  FaFileUpload,
 } from 'react-icons/fa';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
@@ -24,7 +24,8 @@ const CreateTicket = () => {
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     matchId: '',
-    prix: ''
+    prix: '',
+    pdf: null,
   });
 
   const navigate = useNavigate();
@@ -60,34 +61,56 @@ const CreateTicket = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setFormData({ ...formData, pdf: file });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.matchId || !formData.prix) {
-      setError('Veuillez remplir tous les champs');
+    // Vérifications renforcées
+    if (!formData.matchId || formData.matchId === '') {
+      setError('Veuillez sélectionner un match');
+      return;
+    }
+    const prix = parseFloat(formData.prix);
+    if (!formData.prix || isNaN(prix) || prix <= 0) {
+      setError('Veuillez entrer un prix valide supérieur à 0 DH');
+      return;
+    }
+    if (!formData.pdf) {
+      setError('Veuillez uploader un fichier PDF');
+      return;
+    }
+    if (formData.pdf.type !== 'application/pdf') {
+      setError('Le fichier doit être un PDF');
+      return;
+    }
+    if (formData.pdf.size > 5 * 1024 * 1024) {
+      setError('Le fichier PDF doit être inférieur à 5MB');
       return;
     }
 
-    const prix = parseFloat(formData.prix);
-    if (isNaN(prix) || prix <= 0) {
-      setError('Veuillez entrer un prix valide (supérieur à 0 DH)');
-      return;
-    }
+    setSubmitting(true);
+    setError('');
 
     try {
-      setSubmitting(true);
-      setError('');
-
-      const response = await createTicketForSale({
+      console.log('Données envoyées:', {
         matchId: parseInt(formData.matchId),
-        prix: prix
+        prix: prix,
+        pdf: formData.pdf,
       });
+
+      const ticketData = { prix, matchId: parseInt(formData.matchId) };
+      const response = await createTicketForSale(ticketData, formData.pdf);
       console.log('Réponse de createTicketForSale:', response);
 
       setSuccess(true);
       setFormData({
         matchId: '',
-        prix: ''
+        prix: '',
+        pdf: null,
       });
 
       setTimeout(() => {
@@ -140,6 +163,8 @@ const CreateTicket = () => {
     </div>
   );
 
+  const selectedMatch = matches.find(m => m.id === parseInt(formData.matchId));
+
   return (
     <div className="admin-layout">
       <Sidebar />
@@ -160,6 +185,22 @@ const CreateTicket = () => {
               <FaTicketAlt />
               Créer un nouveau ticket
             </h2>
+
+            {error && (
+              <div className="error-alert" style={{
+                backgroundColor: 'rgba(255, 182, 193, 0.3)',
+                color: 'var(--error)',
+                padding: '15px',
+                borderRadius: 'var(--border-radius)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                marginBottom: '20px'
+              }}>
+                <FaExclamationTriangle />
+                {error}
+              </div>
+            )}
 
             {success ? (
               <div className="success-alert" style={{
@@ -185,21 +226,6 @@ const CreateTicket = () => {
               </div>
             ) : (
               <>
-                {error && (
-                  <div className="error-alert" style={{
-                    backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                    color: 'var(--error)',
-                    padding: '15px',
-                    borderRadius: 'var(--border-radius)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px'
-                  }}>
-                    <FaExclamationTriangle />
-                    {error}
-                  </div>
-                )}
-
                 {loading ? (
                   <LoadingSpinner />
                 ) : matches.length > 0 ? (
@@ -248,9 +274,29 @@ const CreateTicket = () => {
                       </div>
                     </div>
 
-                    {formData.matchId && formData.prix && (
+                    <div className="form-group">
+                      <label htmlFor="pdf">
+                        <FaFileUpload style={{ marginRight: '8px' }} />
+                        Fichier PDF du ticket
+                      </label>
+                      <input
+                        type="file"
+                        id="pdf"
+                        name="pdf"
+                        className={`form-control ${!formData.pdf && 'is-invalid'}`}
+                        onChange={handleFileChange}
+                        accept="application/pdf"
+                        required
+                      />
+                      <div className="form-text">
+                        Veuillez uploader le fichier PDF du ticket (max. 5MB).
+                      </div>
+                      {formData.pdf && <div className="form-text" style={{ color: 'var(--secondary)' }}>Fichier sélectionné : {formData.pdf.name}</div>}
+                    </div>
+
+                    {formData.matchId && formData.prix && formData.pdf && (
                       <div className="ticket-preview" style={{
-                        backgroundColor: 'rgba(255, 192, 0, 0.1)',
+                        backgroundColor: 'rgba(255, 223, 186, 0.3)',
                         borderRadius: 'var(--border-radius-md)',
                         padding: '20px',
                         marginBottom: '25px',
@@ -280,9 +326,7 @@ const CreateTicket = () => {
                             paddingBottom: '10px'
                           }}>
                             <div style={{ fontWeight: '500' }}>Match</div>
-                            <div>
-                              {matches.find(m => m.id === parseInt(formData.matchId))?.equipe1} vs {matches.find(m => m.id === parseInt(formData.matchId))?.equipe2}
-                            </div>
+                            <div>{selectedMatch?.equipe1} vs {selectedMatch?.equipe2}</div>
                           </div>
                           <div style={{
                             display: 'flex',
@@ -292,9 +336,7 @@ const CreateTicket = () => {
                             paddingBottom: '10px'
                           }}>
                             <div style={{ fontWeight: '500' }}>Date</div>
-                            <div>
-                              {formatDate(matches.find(m => m.id === parseInt(formData.matchId))?.date)}
-                            </div>
+                            <div>{formatDate(selectedMatch?.date)}</div>
                           </div>
                           <div style={{
                             display: 'flex',
@@ -304,9 +346,7 @@ const CreateTicket = () => {
                             paddingBottom: '10px'
                           }}>
                             <div style={{ fontWeight: '500' }}>Lieu</div>
-                            <div>
-                              {matches.find(m => m.id === parseInt(formData.matchId))?.lieu}
-                            </div>
+                            <div>{selectedMatch?.lieu}</div>
                           </div>
                           <div style={{
                             display: 'flex',
@@ -329,6 +369,9 @@ const CreateTicket = () => {
                         className="btn btn-lg btn-secondary"
                         disabled={submitting}
                         style={{
+                          backgroundColor: '#FFC107',
+                          borderColor: '#FFC107',
+                          color: 'var(--dark)',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '10px',

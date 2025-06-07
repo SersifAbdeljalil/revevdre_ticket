@@ -1,4 +1,3 @@
-// src/api/ticketAPI.js
 import axios from 'axios';
 
 // Configuration de l'URL de base de l'API
@@ -163,14 +162,22 @@ export const getTicketDetails = async (ticketId) => {
   }
 };
 
-// Mettre un ticket en vente
-export const createTicketForSale = async (ticketData) => {
+// Mettre un ticket en vente avec PDF
+export const createTicketForSale = async (ticketData, pdfFile) => {
   try {
     if (!setAuthToken()) {
       throw { message: "Vous devez être connecté pour mettre un ticket en vente" };
     }
-    const adaptedData = adaptTicketForDatabase(ticketData);
-    const response = await axios.post(`${API_URL}${TICKETS_ENDPOINT}`, adaptedData);
+    const formData = new FormData();
+    formData.append('prix', ticketData.prix);
+    formData.append('matchId', ticketData.matchId);
+    formData.append('pdf', pdfFile);
+
+    const response = await axios.post(`${API_URL}${TICKETS_ENDPOINT}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return {
       ...response.data,
       ticket: adaptTicketForFrontend(response.data.ticket)
@@ -180,14 +187,13 @@ export const createTicketForSale = async (ticketData) => {
   }
 };
 
-// Acheter un ticket (enhanced)
+// Acheter un ticket
 export const buyTicket = async (ticketId, paymentData) => {
   try {
     if (!setAuthToken()) {
       throw new Error("Vous devez être connecté pour acheter un ticket");
     }
 
-    // Validate paymentData
     if (!paymentData || !paymentData.methode) {
       throw new Error("La méthode de paiement est requise");
     }
@@ -197,7 +203,6 @@ export const buyTicket = async (ticketId, paymentData) => {
       throw new Error(`Méthode de paiement non valide. Doit être l'une de: ${validPaymentMethods.join(', ')}`);
     }
 
-    // Optional: Validate additional payment details if provided
     if (paymentData.methode === 'carte' && paymentData.cardNumber) {
       if (!/^\d{16}$/.test(paymentData.cardNumber)) {
         throw new Error("Numéro de carte invalide (16 chiffres requis)");
@@ -236,7 +241,6 @@ export const buyTicket = async (ticketId, paymentData) => {
     let errorDetails = {};
 
     if (error.response) {
-      // Server responded with an error
       errorMessage = error.response.data.message || `Erreur ${error.response.status} du serveur`;
       errorDetails = {
         status: error.response.status,
@@ -244,7 +248,6 @@ export const buyTicket = async (ticketId, paymentData) => {
         data: error.response.data,
       };
 
-      // Specific error messages
       switch (error.response.status) {
         case 400:
           if (error.response.data.message.includes('déjà vendu')) {
@@ -265,7 +268,6 @@ export const buyTicket = async (ticketId, paymentData) => {
           break;
       }
     } else if (error.request) {
-      // No response received
       errorMessage = "Le serveur n'a pas répondu à la requête.";
       errorDetails = {
         request: error.request?.responseURL || `${API_URL}${TICKETS_ENDPOINT}/${ticketId}/purchase`,
@@ -273,7 +275,6 @@ export const buyTicket = async (ticketId, paymentData) => {
         timeout: error.config?.timeout || 'inconnu',
       };
     } else {
-      // Error setting up the request
       errorMessage = error.message || "Erreur inconnue";
     }
 
@@ -283,6 +284,30 @@ export const buyTicket = async (ticketId, paymentData) => {
       details: errorDetails,
       originalError: error,
     };
+  }
+};
+
+// Mettre un ticket en revente avec PDF
+export const resellTicket = async (ticketId, ticketData, pdfFile) => {
+  try {
+    if (!setAuthToken()) {
+      throw { message: "Vous devez être connecté pour mettre un ticket en revente" };
+    }
+    const formData = new FormData();
+    formData.append('prix', ticketData.prix);
+    formData.append('pdf', pdfFile);
+
+    const response = await axios.post(`${API_URL}${TICKETS_ENDPOINT}/${ticketId}/resell`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return {
+      ...response.data,
+      ticket: adaptTicketForFrontend(response.data.ticket)
+    };
+  } catch (error) {
+    throw error.response?.data || { message: "Erreur lors de la mise en revente du ticket" };
   }
 };
 
