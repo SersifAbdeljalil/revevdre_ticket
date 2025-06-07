@@ -119,9 +119,9 @@ const EditTicket = () => {
   );
 
   return (
-    <div className="client-layout">
+    <div className="admin-layout">
       <Sidebar />
-      <div className="client-main">
+      <div className="admin-main">
         <Header title="Modifier le Ticket" />
 
         <div className="dashboard-content">
