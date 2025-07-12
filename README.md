@@ -1,4 +1,4 @@
-# 🎫 Application de Revente de Tickets CAN2025
+# 🎫 Application de Revente de Tickets CAN2025.
 
 Cette application permet la gestion et la revente de tickets pour la Coupe d'Afrique des Nations 2025. Le projet est divisé en deux parties principales: frontend et backend.
 
